@@ -67,7 +67,7 @@ const NavLinks = styled.div`
 const DropdownContainer = styled.div`
   position: relative;
   display: inline-block;
-  min-width: 110px;
+  min-width: 100px;
   text-align: center;
 `;
 
