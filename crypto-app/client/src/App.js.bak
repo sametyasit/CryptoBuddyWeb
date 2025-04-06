@@ -16,10 +16,6 @@ import Register from './pages/Register';
 import Portfolio from './pages/Portfolio';
 import Education from './pages/Education';
 import PrivateRoute from './components/PrivateRoute';
-import Convert from './pages/transactions/Convert';
-import Swap from './pages/transactions/Swap';
-import Launchpool from './pages/transactions/Launchpool';
-import Earn from './pages/transactions/Earn';
 
 function App() {
   return (
@@ -47,12 +43,6 @@ function App() {
                 </PrivateRoute>
               }
             />
-            
-            {/* İşlemler Sayfaları */}
-            <Route path="/transactions/convert" element={<Convert />} />
-            <Route path="/transactions/swap" element={<Swap />} />
-            <Route path="/transactions/launchpool" element={<Launchpool />} />
-            <Route path="/transactions/earn" element={<Earn />} />
           </Routes>
         </AuthProvider>
       </Router>

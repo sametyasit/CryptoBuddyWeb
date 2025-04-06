@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FaChartLine, FaRobot, FaShieldAlt, FaBell, FaExchangeAlt, FaSpinner } from 'react-icons/fa';
+import { FaChartLine, FaRobot, FaShieldAlt, FaBell, FaExchangeAlt, FaSpinner, FaChevronDown } from 'react-icons/fa';
+import { useLocation } from 'react-router-dom';
 
 const Container = styled.div`
   max-width: 1200px;
@@ -130,24 +131,90 @@ const TabContainer = styled.div`
   margin-bottom: 2rem;
 `;
 
-const TabHeader = styled.div`
+const AiMenuContainer = styled.div`
+  margin-bottom: 2rem;
+`;
+
+const AiMenuHeader = styled.div`
   display: flex;
-  border-bottom: 1px solid var(--border);
+  align-items: center;
   margin-bottom: 1.5rem;
 `;
 
-const Tab = styled.button`
-  padding: 0.8rem 1.5rem;
-  background: ${props => props.active ? 'var(--primary)' : 'transparent'};
-  color: ${props => props.active ? 'white' : 'var(--text)'};
-  border: none;
+const AiMenuTitle = styled.h3`
+  margin: 0;
+  color: var(--text);
+`;
+
+const DropdownSelector = styled.div`
+  position: relative;
+  width: 100%;
+  margin-bottom: 1.5rem;
+`;
+
+const DropdownButton = styled.button`
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: var(--cardBackground);
+  border: 1px solid var(--border);
+  border-radius: 8px;
   cursor: pointer;
+  color: var(--text);
   font-weight: 500;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   
   &:hover {
-    background: ${props => props.active ? 'var(--primary)' : 'var(--border)'};
+    background: var(--hover);
   }
+  
+  svg {
+    transition: transform 0.2s ease;
+    transform: ${({ isOpen }) => isOpen ? 'rotate(180deg)' : 'rotate(0)'};
+  }
+`;
+
+const DropdownMenu = styled.div`
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--cardBackground);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  z-index: 100;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+  margin-top: 5px;
+  overflow: hidden;
+  display: ${({ isOpen }) => (isOpen ? 'block' : 'none')};
+`;
+
+const DropdownItem = styled.button`
+  width: 100%;
+  padding: 1rem 1.5rem;
+  text-align: left;
+  background: ${({ active }) => active ? 'var(--hover)' : 'transparent'};
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  transition: background 0.2s ease;
+  
+  &:hover {
+    background: var(--hover);
+  }
+  
+  &:not(:last-child) {
+    border-bottom: 1px solid var(--border);
+  }
+`;
+
+const ContentContainer = styled.div`
+  padding: 1.5rem;
+  background: var(--cardBackground);
+  border-radius: 8px;
+  border: 1px solid var(--border);
 `;
 
 const ChartPlaceholder = styled.div`
@@ -246,7 +313,17 @@ const GPTResponse = styled.div`
 `;
 
 const AIBasket = () => {
-  const [activeTab, setActiveTab] = useState('market');
+  const location = useLocation();
+  
+  // URL'den tab parametresini al veya varsayılan olarak 'market' kullan
+  const getTabFromUrl = () => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    return tab && ['market', 'suggestions', 'alerts', 'strategies'].includes(tab) ? tab : 'market';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getTabFromUrl());
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [riskLevel, setRiskLevel] = useState('moderate');
   const [strategyType, setStrategyType] = useState('trend');
   const [strategyRiskLevel, setStrategyRiskLevel] = useState('moderate');
@@ -829,6 +906,27 @@ ${finalRecommendation}`;
     }, 1500);
   };
   
+  // Ekran başlıklarını belirle
+  const getActiveTitle = () => {
+    switch(activeTab) {
+      case 'market':
+        return 'Piyasa Analizi';
+      case 'suggestions':
+        return 'Yatırım Önerileri';
+      case 'alerts':
+        return 'Piyasa Uyarıları';
+      case 'strategies':
+        return 'Alım-Satım Stratejileri';
+      default:
+        return 'Piyasa Analizi';
+    }
+  };
+
+  // URL parametresi değiştiğinde tab'ı güncelle
+  useEffect(() => {
+    setActiveTab(getTabFromUrl());
+  }, [location.search]);
+
   return (
     <Container>
       <Title>Yapay Zeka Sepeti</Title>
@@ -839,211 +937,239 @@ ${finalRecommendation}`;
           Risk seviyenize, yatırım miktarınıza ve zaman dilimine göre kişiselleştirilmiş öneriler alın.
         </Description>
         
-        <TabContainer>
-          <TabHeader>
-            <Tab 
-              active={activeTab === 'market'} 
-              onClick={() => setActiveTab('market')}
-            >
-              Piyasa Analizi
-            </Tab>
-            <Tab 
-              active={activeTab === 'suggestions'} 
-              onClick={() => setActiveTab('suggestions')}
-            >
-              Yatırım Önerileri
-            </Tab>
-            <Tab 
-              active={activeTab === 'alerts'} 
-              onClick={() => setActiveTab('alerts')}
-            >
-              Piyasa Uyarıları
-            </Tab>
-            <Tab 
-              active={activeTab === 'strategies'} 
-              onClick={() => setActiveTab('strategies')}
-            >
-              Alım-Satım Stratejileri
-            </Tab>
-          </TabHeader>
+        <AiMenuContainer>
+          <AiMenuHeader>
+            <AiMenuTitle>{getActiveTitle()}</AiMenuTitle>
+          </AiMenuHeader>
           
-          {activeTab === 'market' && (
-            <>
-              <ChartPlaceholder>
-                <FaChartLine size={40} color="var(--primary)" />
-              </ChartPlaceholder>
-              
-              <h3>Güncel Piyasa Trendleri</h3>
-              
-              {mockMarketTrends.map((trend, index) => (
-                <AlertContainer 
-                  key={index} 
-                  type={trend.sentiment === 'bullish' ? 'success' : 'danger'}
-                >
-                  {trend.trend}
-                </AlertContainer>
-              ))}
-            </>
-          )}
+          <DropdownSelector>
+            <DropdownButton 
+              isOpen={dropdownOpen} 
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+            >
+              {getActiveTitle()}
+              <FaChevronDown />
+            </DropdownButton>
+            
+            <DropdownMenu isOpen={dropdownOpen}>
+              <DropdownItem 
+                active={activeTab === 'market'} 
+                onClick={() => {
+                  setActiveTab('market');
+                  setDropdownOpen(false);
+                }}
+              >
+                Piyasa Analizi
+              </DropdownItem>
+              <DropdownItem 
+                active={activeTab === 'suggestions'} 
+                onClick={() => {
+                  setActiveTab('suggestions');
+                  setDropdownOpen(false);
+                }}
+              >
+                Yatırım Önerileri
+              </DropdownItem>
+              <DropdownItem 
+                active={activeTab === 'alerts'} 
+                onClick={() => {
+                  setActiveTab('alerts');
+                  setDropdownOpen(false);
+                }}
+              >
+                Piyasa Uyarıları
+              </DropdownItem>
+              <DropdownItem 
+                active={activeTab === 'strategies'}
+                onClick={() => {
+                  setActiveTab('strategies');
+                  setDropdownOpen(false);
+                }}
+              >
+                Alım-Satım Stratejileri
+              </DropdownItem>
+            </DropdownMenu>
+          </DropdownSelector>
           
-          {activeTab === 'suggestions' && (
-            <>
-              <h3>Kişiselleştirilmiş Yatırım Önerileri</h3>
-              <Form onSubmit={handleSubmit}>
-                <FormGroup>
-                  <Label>Yatırım Miktarı (USD)</Label>
-                  <Input 
-                    type="number" 
-                    value={investmentAmount}
-                    onChange={(e) => setInvestmentAmount(e.target.value)}
-                    placeholder="1000"
-                    required
-                  />
-                </FormGroup>
+          <ContentContainer>
+            {activeTab === 'market' && (
+              <>
+                <ChartPlaceholder>
+                  <FaChartLine size={40} color="var(--primary)" />
+                </ChartPlaceholder>
                 
-                <FormGroup>
-                  <Label>Coin Sayısı (1-20)</Label>
-                  <Input 
-                    type="number" 
-                    value={coinCount}
-                    onChange={(e) => setCoinCount(Math.min(20, Math.max(1, parseInt(e.target.value) || 1)))}
-                    min="1"
-                    max="20"
-                    required
-                  />
-                </FormGroup>
+                <h3>Güncel Piyasa Trendleri</h3>
                 
-                <FormGroup>
-                  <Label>Risk Seviyeniz</Label>
-                  <Select 
-                    value={riskLevel}
-                    onChange={(e) => setRiskLevel(e.target.value)}
-                    required
+                {mockMarketTrends.map((trend, index) => (
+                  <AlertContainer 
+                    key={index} 
+                    type={trend.sentiment === 'bullish' ? 'success' : 'danger'}
                   >
-                    <option value="low">Düşük Risk (Muhafazakar)</option>
-                    <option value="moderate">Orta Risk (Dengeli)</option>
-                    <option value="high">Yüksek Risk (Agresif)</option>
-                  </Select>
-                </FormGroup>
+                    {trend.trend}
+                  </AlertContainer>
+                ))}
+              </>
+            )}
+            
+            {activeTab === 'suggestions' && (
+              <>
+                <h3>Kişiselleştirilmiş Yatırım Önerileri</h3>
+                <Form onSubmit={handleSubmit}>
+                  <FormGroup>
+                    <Label>Yatırım Miktarı (USD)</Label>
+                    <Input 
+                      type="number" 
+                      value={investmentAmount}
+                      onChange={(e) => setInvestmentAmount(e.target.value)}
+                      placeholder="1000"
+                      required
+                    />
+                  </FormGroup>
+                  
+                  <FormGroup>
+                    <Label>Coin Sayısı (1-20)</Label>
+                    <Input 
+                      type="number" 
+                      value={coinCount}
+                      onChange={(e) => setCoinCount(Math.min(20, Math.max(1, parseInt(e.target.value) || 1)))}
+                      min="1"
+                      max="20"
+                      required
+                    />
+                  </FormGroup>
+                  
+                  <FormGroup>
+                    <Label>Risk Seviyeniz</Label>
+                    <Select 
+                      value={riskLevel}
+                      onChange={(e) => setRiskLevel(e.target.value)}
+                      required
+                    >
+                      <option value="low">Düşük Risk (Muhafazakar)</option>
+                      <option value="moderate">Orta Risk (Dengeli)</option>
+                      <option value="high">Yüksek Risk (Agresif)</option>
+                    </Select>
+                  </FormGroup>
+                  
+                  <FormGroup>
+                    <Label>Yatırım Zaman Dilimi (Ay)</Label>
+                    <Input 
+                      type="number" 
+                      value={timeHorizon}
+                      onChange={(e) => setTimeHorizon(Math.min(120, Math.max(1, parseInt(e.target.value) || 1)))}
+                      min="1"
+                      max="120"
+                      required
+                    />
+                  </FormGroup>
+                  
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Analiz Ediliyor...' : 'Yapay Zeka Önerisi Al'}
+                  </Button>
+                </Form>
                 
-                <FormGroup>
-                  <Label>Yatırım Zaman Dilimi (Ay)</Label>
-                  <Input 
-                    type="number" 
-                    value={timeHorizon}
-                    onChange={(e) => setTimeHorizon(Math.min(120, Math.max(1, parseInt(e.target.value) || 1)))}
-                    min="1"
-                    max="120"
-                    required
-                  />
-                </FormGroup>
+                {loading && (
+                  <Spinner>
+                    <FaSpinner size={40} color="var(--primary)" />
+                  </Spinner>
+                )}
                 
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Analiz Ediliyor...' : 'Yapay Zeka Önerisi Al'}
-                </Button>
-              </Form>
-              
-              {loading && (
-                <Spinner>
-                  <FaSpinner size={40} color="var(--primary)" />
-                </Spinner>
-              )}
-              
-              {showResult && (
-                <GPTResponse>
-                  {gptResponse}
-                </GPTResponse>
-              )}
-            </>
-          )}
-          
-          {activeTab === 'alerts' && (
-            <>
-              <h3>Gerçek Zamanlı Piyasa Uyarıları</h3>
-              <Description>
-                Piyasadaki önemli değişiklikler ve fırsatlar için gerçek zamanlı uyarılar alın.
-                Yapay zeka algoritmalarımız, fiyat hareketlerini, haber etkilerini ve sosyal medya trendlerini
-                analiz ederek size özel uyarılar oluşturur.
-              </Description>
-              
-              <Form>
-                <FormGroup>
-                  <Label>Uyarı Tipi</Label>
-                  <Select>
-                    <option value="price">Fiyat Değişiklikleri</option>
-                    <option value="trend">Trend Değişiklikleri</option>
-                    <option value="news">Önemli Haberler</option>
-                    <option value="volume">Hacim Artışları</option>
-                    <option value="all">Tüm Uyarılar</option>
-                  </Select>
-                </FormGroup>
+                {showResult && (
+                  <GPTResponse>
+                    {gptResponse}
+                  </GPTResponse>
+                )}
+              </>
+            )}
+            
+            {activeTab === 'alerts' && (
+              <>
+                <h3>Gerçek Zamanlı Piyasa Uyarıları</h3>
+                <Description>
+                  Piyasadaki önemli değişiklikler ve fırsatlar için gerçek zamanlı uyarılar alın.
+                  Yapay zeka algoritmalarımız, fiyat hareketlerini, haber etkilerini ve sosyal medya trendlerini
+                  analiz ederek size özel uyarılar oluşturur.
+                </Description>
                 
-                <FormGroup>
-                  <Label>Takip Etmek İstediğiniz Kripto Paralar</Label>
-                  <Input placeholder="BTC, ETH, ADA..." />
-                </FormGroup>
+                <Form>
+                  <FormGroup>
+                    <Label>Uyarı Tipi</Label>
+                    <Select>
+                      <option value="price">Fiyat Değişiklikleri</option>
+                      <option value="trend">Trend Değişiklikleri</option>
+                      <option value="news">Önemli Haberler</option>
+                      <option value="volume">Hacim Artışları</option>
+                      <option value="all">Tüm Uyarılar</option>
+                    </Select>
+                  </FormGroup>
+                  
+                  <FormGroup>
+                    <Label>Takip Etmek İstediğiniz Kripto Paralar</Label>
+                    <Input placeholder="BTC, ETH, ADA..." />
+                  </FormGroup>
+                  
+                  <Button type="button">Uyarıları Ayarla</Button>
+                </Form>
+              </>
+            )}
+            
+            {activeTab === 'strategies' && (
+              <>
+                <h3>Otomatik Alım-Satım Stratejileri</h3>
+                <Description>
+                  Yapay zeka destekli ticaret stratejileri ile piyasa hareketlerinden maksimum fayda sağlayın.
+                  Risk seviyenize ve tercihlerinize göre otomatik alım-satım stratejileri oluşturun.
+                </Description>
                 
-                <Button type="button">Uyarıları Ayarla</Button>
-              </Form>
-            </>
-          )}
-          
-          {activeTab === 'strategies' && (
-            <>
-              <h3>Otomatik Alım-Satım Stratejileri</h3>
-              <Description>
-                Yapay zeka destekli ticaret stratejileri ile piyasa hareketlerinden maksimum fayda sağlayın.
-                Risk seviyenize ve tercihlerinize göre otomatik alım-satım stratejileri oluşturun.
-              </Description>
-              
-              <Form onSubmit={(e) => {
-                e.preventDefault();
-                generateStrategy();
-              }}>
-                <FormGroup>
-                  <Label>Strateji Tipi</Label>
-                  <Select 
-                    value={strategyType}
-                    onChange={(e) => setStrategyType(e.target.value)}
-                  >
-                    <option value="trend">Trend Takibi</option>
-                    <option value="reversal">Trend Dönüşü</option>
-                    <option value="breakout">Kırılma Stratejisi</option>
-                    <option value="dca">Ortalama Maliyet Stratejisi (DCA)</option>
-                  </Select>
-                </FormGroup>
+                <Form onSubmit={(e) => {
+                  e.preventDefault();
+                  generateStrategy();
+                }}>
+                  <FormGroup>
+                    <Label>Strateji Tipi</Label>
+                    <Select 
+                      value={strategyType}
+                      onChange={(e) => setStrategyType(e.target.value)}
+                    >
+                      <option value="trend">Trend Takibi</option>
+                      <option value="reversal">Trend Dönüşü</option>
+                      <option value="breakout">Kırılma Stratejisi</option>
+                      <option value="dca">Ortalama Maliyet Stratejisi (DCA)</option>
+                    </Select>
+                  </FormGroup>
+                  
+                  <FormGroup>
+                    <Label>Risk Seviyesi</Label>
+                    <Select 
+                      value={strategyRiskLevel}
+                      onChange={(e) => setStrategyRiskLevel(e.target.value)}
+                    >
+                      <option value="low">Düşük Risk</option>
+                      <option value="moderate">Orta Risk</option>
+                      <option value="high">Yüksek Risk</option>
+                    </Select>
+                  </FormGroup>
+                  
+                  <Button type="submit" disabled={strategyLoading}>
+                    {strategyLoading ? 'Strateji Oluşturuluyor...' : 'Strateji Oluştur'}
+                  </Button>
+                </Form>
                 
-                <FormGroup>
-                  <Label>Risk Seviyesi</Label>
-                  <Select 
-                    value={strategyRiskLevel}
-                    onChange={(e) => setStrategyRiskLevel(e.target.value)}
-                  >
-                    <option value="low">Düşük Risk</option>
-                    <option value="moderate">Orta Risk</option>
-                    <option value="high">Yüksek Risk</option>
-                  </Select>
-                </FormGroup>
+                {strategyLoading && (
+                  <Spinner>
+                    <FaSpinner size={40} color="var(--primary)" />
+                  </Spinner>
+                )}
                 
-                <Button type="submit" disabled={strategyLoading}>
-                  {strategyLoading ? 'Strateji Oluşturuluyor...' : 'Strateji Oluştur'}
-                </Button>
-              </Form>
-              
-              {strategyLoading && (
-                <Spinner>
-                  <FaSpinner size={40} color="var(--primary)" />
-                </Spinner>
-              )}
-              
-              {showStrategyResult && (
-                <GPTResponse>
-                  {strategyResponse}
-                </GPTResponse>
-              )}
-            </>
-          )}
-        </TabContainer>
+                {showStrategyResult && (
+                  <GPTResponse>
+                    {strategyResponse}
+                  </GPTResponse>
+                )}
+              </>
+            )}
+          </ContentContainer>
+        </AiMenuContainer>
       </Card>
       
       <FeatureGrid>

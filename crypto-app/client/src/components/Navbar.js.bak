@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { FaSun, FaMoon, FaBars, FaTimes, FaChevronDown } from 'react-icons/fa';
+import { FaSun, FaMoon, FaBars, FaTimes } from 'react-icons/fa';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -49,7 +49,7 @@ const MenuButton = styled.button`
 const NavLinks = styled.div`
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 2rem;
   
   @media (max-width: 768px) {
     display: ${props => props.isOpen ? 'flex' : 'none'};
@@ -64,66 +64,11 @@ const NavLinks = styled.div`
   }
 `;
 
-const DropdownContainer = styled.div`
-  position: relative;
-  display: inline-block;
-  min-width: 110px;
-  text-align: center;
-`;
-
-const DropdownButton = styled.button`
-  background: none;
-  border: none;
-  color: var(--text);
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.3rem;
-  min-width: 110px;
-  
-  &:hover {
-    color: var(--primary);
-  }
-`;
-
-const DropdownContent = styled.div`
-  display: ${props => props.isOpen ? 'block' : 'none'};
-  position: absolute;
-  background-color: var(--cardBackground);
-  min-width: 160px;
-  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-  z-index: 1;
-  border-radius: 4px;
-  overflow: hidden;
-  
-  @media (max-width: 768px) {
-    position: relative;
-    box-shadow: none;
-    margin-top: 0.5rem;
-  }
-`;
-
-const DropdownItem = styled(Link)`
-  color: var(--text);
-  padding: 12px 16px;
-  text-decoration: none;
-  display: block;
-  
-  &:hover {
-    background-color: var(--hover);
-    color: var(--primary);
-  }
-`;
-
 const NavLink = styled(Link)`
   color: var(--text);
   text-decoration: none;
   font-weight: 500;
   transition: color 0.3s ease;
-  min-width: 110px;
-  text-align: center;
   
   &:hover {
     color: var(--primary);
@@ -182,9 +127,6 @@ const Navbar = () => {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isTransactionsOpen, setIsTransactionsOpen] = useState(false);
-  const [isOtherOpen, setIsOtherOpen] = useState(false);
-  const [isAIBasketOpen, setIsAIBasketOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -209,40 +151,9 @@ const Navbar = () => {
         <NavLinks isOpen={isMenuOpen}>
           <NavLink to="/">Ana Sayfa</NavLink>
           <NavLink to="/news">Haberler</NavLink>
-          
-          <DropdownContainer>
-            <DropdownButton onClick={() => setIsTransactionsOpen(!isTransactionsOpen)}>
-              İşlemler <FaChevronDown />
-            </DropdownButton>
-            <DropdownContent isOpen={isTransactionsOpen}>
-              <DropdownItem to="/transactions/convert">Dönüştürme</DropdownItem>
-              <DropdownItem to="/transactions/swap">Coin Takasla</DropdownItem>
-              <DropdownItem to="/transactions/launchpool">Launchpool</DropdownItem>
-              <DropdownItem to="/transactions/earn">Earn</DropdownItem>
-            </DropdownContent>
-          </DropdownContainer>
-          
-          <DropdownContainer>
-            <DropdownButton onClick={() => setIsAIBasketOpen(!isAIBasketOpen)}>
-              Yapay Zeka Sepeti <FaChevronDown />
-            </DropdownButton>
-            <DropdownContent isOpen={isAIBasketOpen}>
-              <DropdownItem to="/ai-basket?tab=market">Piyasa Analizi</DropdownItem>
-              <DropdownItem to="/ai-basket?tab=suggestions">Yatırım Önerileri</DropdownItem>
-              <DropdownItem to="/ai-basket?tab=alerts">Piyasa Uyarıları</DropdownItem>
-              <DropdownItem to="/ai-basket?tab=strategies">Alım-Satım Stratejileri</DropdownItem>
-            </DropdownContent>
-          </DropdownContainer>
-          
-          <DropdownContainer>
-            <DropdownButton onClick={() => setIsOtherOpen(!isOtherOpen)}>
-              Diğer <FaChevronDown />
-            </DropdownButton>
-            <DropdownContent isOpen={isOtherOpen}>
-              <DropdownItem to="/education">Bilgilendirme</DropdownItem>
-              <DropdownItem to="/about">Hakkımızda</DropdownItem>
-            </DropdownContent>
-          </DropdownContainer>
+          <NavLink to="/ai-basket">Yapay Zeka Sepeti</NavLink>
+          <NavLink to="/education">Bilgilendirme</NavLink>
+          <NavLink to="/about">Hakkımızda</NavLink>
           
           <ThemeToggle onClick={toggleTheme}>
             {theme === 'light' ? <FaMoon /> : <FaSun />}
