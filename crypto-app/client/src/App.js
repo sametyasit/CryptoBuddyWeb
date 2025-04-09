@@ -19,7 +19,7 @@ import PrivateRoute from './components/PrivateRoute';
 import Convert from './pages/transactions/Convert';
 import Swap from './pages/transactions/Swap';
 import Launchpool from './pages/transactions/Launchpool';
-import Earn from './pages/transactions/Earn';
+import Earn from './pages/Earn';
 
 function App() {
   return (

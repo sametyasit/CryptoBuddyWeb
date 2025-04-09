@@ -215,10 +215,10 @@ const Navbar = () => {
               İşlemler <FaChevronDown />
             </DropdownButton>
             <DropdownContent isOpen={isTransactionsOpen}>
-              <DropdownItem to="/transactions/convert">Dönüştürme</DropdownItem>
-              <DropdownItem to="/transactions/swap">Coin Takasla</DropdownItem>
+              <DropdownItem to="/transactions/convert">Dönüştür</DropdownItem>
+              <DropdownItem to="/transactions/swap">Takas</DropdownItem>
               <DropdownItem to="/transactions/launchpool">Launchpool</DropdownItem>
-              <DropdownItem to="/transactions/earn">Earn</DropdownItem>
+              <DropdownItem to="/transactions/earn">Eğitim ve İçerik</DropdownItem>
             </DropdownContent>
           </DropdownContainer>
           
@@ -250,14 +250,14 @@ const Navbar = () => {
           
           {currentUser ? (
             <>
-              <NavLink to="/portfolio">Portföyüm</NavLink>
-              <NavLink to="/profile">Profilim</NavLink>
-              <AuthButton as="button" onClick={handleLogout}>Çıkış Yap</AuthButton>
+              <NavLink to="/portfolio">Portföy</NavLink>
+              <NavLink to="/profile">Profil</NavLink>
+              <AuthButton onClick={handleLogout}>Çıkış Yap</AuthButton>
             </>
           ) : (
             <AuthButtons>
               <AuthButton to="/login">Giriş Yap</AuthButton>
-              <AuthButton to="/register" primary>Kayıt Ol</AuthButton>
+              <AuthButton primary to="/register">Kayıt Ol</AuthButton>
             </AuthButtons>
           )}
         </NavLinks>
