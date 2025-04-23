@@ -218,7 +218,6 @@ const Navbar = () => {
               <DropdownItem to="/transactions/convert">Dönüştür</DropdownItem>
               <DropdownItem to="/transactions/swap">Takas</DropdownItem>
               <DropdownItem to="/transactions/launchpool">Launchpool</DropdownItem>
-              <DropdownItem to="/transactions/earn">Eğitim ve İçerik</DropdownItem>
             </DropdownContent>
           </DropdownContainer>
           
@@ -240,6 +239,7 @@ const Navbar = () => {
             </DropdownButton>
             <DropdownContent isOpen={isOtherOpen}>
               <DropdownItem to="/education">Bilgilendirme</DropdownItem>
+              <DropdownItem to="/transactions/earn">Eğitim ve İçerik</DropdownItem>
               <DropdownItem to="/about">Hakkımızda</DropdownItem>
             </DropdownContent>
           </DropdownContainer>

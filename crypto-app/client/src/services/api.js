@@ -369,4 +369,205 @@ export const alertAPI = {
   }
 };
 
+// Binance API için launchpool fonksiyonları
+export const getBinanceLaunchpools = async () => {
+  try {
+    // Mock veri
+    return [
+      {
+        id: 'binance-1',
+        name: 'Ethena (ENA)',
+        symbol: 'ENA',
+        icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/28772.png',
+        apy: 15.2,
+        totalStaked: 250000000,
+        minStake: 10,
+        endDate: '2025-06-15',
+        status: 'ACTIVE'
+      },
+      {
+        id: 'binance-2',
+        name: 'Omni Network (OMNI)',
+        symbol: 'OMNI',
+        icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/28205.png',
+        apy: 12.8,
+        totalStaked: 180000000,
+        minStake: 5,
+        endDate: '2025-06-30',
+        status: 'ACTIVE'
+      },
+      {
+        id: 'binance-3',
+        name: 'Saga (SAGA)',
+        symbol: 'SAGA',
+        icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/25467.png',
+        apy: 8.5,
+        totalStaked: 95000000,
+        minStake: 20,
+        endDate: '2025-07-10',
+        status: 'ACTIVE'
+      }
+    ];
+  } catch (error) {
+    console.error('Binance launchpool verileri alınırken hata:', error);
+    return [];
+  }
+};
+
+// CoinGecko API için launchpool fonksiyonları
+export const getCoinGeckoLaunchpools = async () => {
+  try {
+    // Mock veri
+    return [
+      {
+        id: 'coingecko-1',
+        name: 'ZetaChain (ZETA)',
+        symbol: 'ZETA',
+        icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/24477.png',
+        apy: 18.5,
+        startDate: '2026-01-01',
+        status: 'UPCOMING'
+      },
+      {
+        id: 'coingecko-2',
+        name: 'AltLayer (ALT)',
+        symbol: 'ALT',
+        icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/28385.png',
+        apy: 14.2,
+        startDate: '2026-01-15',
+        status: 'UPCOMING'
+      },
+      {
+        id: 'coingecko-3',
+        name: 'Portal (PORTAL)',
+        symbol: 'PORTAL',
+        icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/27739.png',
+        apy: 16.8,
+        totalStaked: 320000000,
+        endDate: '2024-12-20',
+        status: 'COMPLETED'
+      },
+      {
+        id: 'coingecko-4',
+        name: 'Dymension (DYM)',
+        symbol: 'DYM',
+        icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/28615.png',
+        apy: 22.5,
+        totalStaked: 450000000,
+        endDate: '2024-11-30',
+        status: 'COMPLETED'
+      },
+      {
+        id: 'coingecko-5',
+        name: 'Manta Network (MANTA)',
+        symbol: 'MANTA',
+        icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/27075.png',
+        apy: 19.3,
+        totalStaked: 280000000,
+        endDate: '2024-10-15',
+        status: 'COMPLETED'
+      }
+    ];
+  } catch (error) {
+    console.error('CoinGecko launchpool verileri alınırken hata:', error);
+    return [];
+  }
+};
+
+// CoinMarketCap API için launchpool fonksiyonları
+export const getCoinMarketCapLaunchpools = async () => {
+  try {
+    // Mock veri
+    return [
+      {
+        symbol: 'ENA',
+        market_cap: 1250000000,
+        volume_24h: 85000000,
+        price: 1.25
+      },
+      {
+        symbol: 'OMNI',
+        market_cap: 950000000,
+        volume_24h: 65000000,
+        price: 0.95
+      },
+      {
+        symbol: 'SAGA',
+        market_cap: 750000000,
+        volume_24h: 45000000,
+        price: 0.75
+      },
+      {
+        symbol: 'ZETA',
+        market_cap: 0,
+        volume_24h: 0,
+        price: 0
+      },
+      {
+        symbol: 'ALT',
+        market_cap: 0,
+        volume_24h: 0,
+        price: 0
+      },
+      {
+        symbol: 'PORTAL',
+        market_cap: 2800000000,
+        volume_24h: 120000000,
+        price: 2.80
+      },
+      {
+        symbol: 'DYM',
+        market_cap: 3500000000,
+        volume_24h: 150000000,
+        price: 3.50
+      },
+      {
+        symbol: 'MANTA',
+        market_cap: 1800000000,
+        volume_24h: 95000000,
+        price: 1.80
+      }
+    ];
+  } catch (error) {
+    console.error('CoinMarketCap launchpool verileri alınırken hata:', error);
+    return [];
+  }
+};
+
+// Tüm launchpool verilerini birleştiren fonksiyon
+export const getAllLaunchpools = async () => {
+  try {
+    const [binanceData, coingeckoData, cmcData] = await Promise.all([
+      getBinanceLaunchpools(),
+      getCoinGeckoLaunchpools(),
+      getCoinMarketCapLaunchpools()
+    ]);
+
+    // Verileri birleştir ve formatla
+    const activePools = binanceData.filter(pool => pool.status === 'ACTIVE');
+    const upcomingPools = coingeckoData.filter(pool => pool.status === 'UPCOMING');
+    const pastPools = coingeckoData.filter(pool => pool.status === 'COMPLETED');
+
+    // CMC verilerini kullanarak ek bilgiler ekle
+    const enrichedPools = [...activePools, ...upcomingPools, ...pastPools].map(pool => {
+      const cmcInfo = cmcData.find(coin => coin.symbol === pool.symbol);
+      return {
+        ...pool,
+        marketCap: cmcInfo?.market_cap,
+        volume24h: cmcInfo?.volume_24h,
+        price: cmcInfo?.price
+      };
+    });
+
+    return {
+      active: enrichedPools.filter(pool => pool.status === 'ACTIVE'),
+      upcoming: enrichedPools.filter(pool => pool.status === 'UPCOMING'),
+      past: enrichedPools.filter(pool => pool.status === 'COMPLETED')
+    };
+  } catch (error) {
+    console.error('Launchpool verileri birleştirilirken hata:', error);
+    return { active: [], upcoming: [], past: [] };
+  }
+};
+
 export default { authAPI, coinAPI, portfolioAPI, newsAPI, favoriteAPI, alertAPI }; 
