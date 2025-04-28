@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
@@ -20,6 +20,8 @@ import Convert from './pages/transactions/Convert';
 import Swap from './pages/transactions/Swap';
 import Launchpool from './pages/transactions/Launchpool';
 import Earn from './pages/Earn';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 function App() {
   return (
@@ -47,7 +49,6 @@ function App() {
                 </PrivateRoute>
               }
             />
-            
             {/* İşlemler Sayfaları */}
             <Route path="/transactions/convert" element={<Convert />} />
             <Route path="/transactions/swap" element={<Swap />} />
