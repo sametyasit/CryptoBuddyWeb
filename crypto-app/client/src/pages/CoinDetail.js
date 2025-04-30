@@ -257,32 +257,6 @@ const CardTitle = styled.h2`
   }
 `;
 
-const TabsContainer = styled.div`
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 0.5rem;
-  overflow-x: auto;
-`;
-
-const Tab = styled.button`
-  background: none;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  white-space: nowrap;
-  color: ${props => (props.active ? 'var(--primary)' : 'var(--text)')};
-  font-weight: ${props => (props.active ? '600' : '400')};
-  border-bottom: ${props => (props.active ? '2px solid var(--primary)' : 'none')};
-  
-  &:hover {
-    color: var(--primary);
-  }
-`;
-
 const ChartContainer = styled.div`
   width: 100%;
   height: 400px;
@@ -399,7 +373,8 @@ const formatDate = (timestamp) => {
   }).format(date);
 };
 
-const fetchPriceHistory = async (id, days = '7') => {
+// CoinGecko API için fiyat geçmişi çekme fonksiyonu
+const fetchPriceHistoryCoinGecko = async (id, days = '7') => {
   try {
     const response = await axios.get(
       `https://api.coingecko.com/api/v3/coins/${id}/market_chart`,
@@ -413,9 +388,129 @@ const fetchPriceHistory = async (id, days = '7') => {
     );
     return response.data.prices;
   } catch (error) {
-    console.error('Error fetching price history:', error);
+    console.error('Error fetching price history from CoinGecko:', error);
     return null;
   }
+};
+
+// CryptoCompare API için fiyat geçmişi çekme fonksiyonu (alternatif)
+const fetchPriceHistoryCryptoCompare = async (symbol, days = '7') => {
+  try {
+    let endpoint = '';
+    let limit = 30;
+    
+    if (days === '1' || days === '24h') {
+      endpoint = 'histohour';
+      limit = 24;
+    } else if (days === '7' || days === '7d') {
+      endpoint = 'histoday';
+      limit = 7;
+    } else if (days === '30' || days === '30d') {
+      endpoint = 'histoday';
+      limit = 30;
+    } else if (days === '90' || days === '90d') {
+      endpoint = 'histoday';
+      limit = 90;
+    } else if (days === '365' || days === '1y') {
+      endpoint = 'histoday';
+      limit = 365;
+    } else {
+      endpoint = 'histoday';
+      limit = 2000;  // Uzun dönem için maksimum veri
+    }
+    
+    const response = await axios.get(
+      `https://min-api.cryptocompare.com/data/${endpoint}`,
+      {
+        params: {
+          fsym: symbol.toUpperCase(),
+          tsym: 'USD',
+          limit: limit,
+          api_key: 'Kendi API anahtarınızı buraya yerleştirin veya API anahtarı olmadan kullanın'
+        }
+      }
+    );
+    
+    if (response.data && response.data.Data) {
+      return response.data.Data.map(item => [
+        item.time * 1000, // Unix timestamp to milliseconds
+        item.close
+      ]);
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching price history from CryptoCompare:', error);
+    return null;
+  }
+};
+
+// Coinpaprika API için fiyat geçmişi çekme fonksiyonu (ikinci alternatif)
+const fetchPriceHistoryCoinpaprika = async (id, days = '7') => {
+  try {
+    // Başlangıç ve bitiş tarihleri hesaplama
+    const end = new Date();
+    let start = new Date();
+    
+    if (days === '1' || days === '24h') {
+      start.setDate(start.getDate() - 1);
+    } else if (days === '7' || days === '7d') {
+      start.setDate(start.getDate() - 7);
+    } else if (days === '30' || days === '30d') {
+      start.setMonth(start.getMonth() - 1);
+    } else if (days === '90' || days === '90d') {
+      start.setMonth(start.getMonth() - 3);
+    } else if (days === '365' || days === '1y') {
+      start.setFullYear(start.getFullYear() - 1);
+    } else {
+      // max için 5 yıl
+      start.setFullYear(start.getFullYear() - 5);
+    }
+    
+    const startTimestamp = Math.floor(start.getTime() / 1000);
+    const endTimestamp = Math.floor(end.getTime() / 1000);
+    
+    const response = await axios.get(
+      `https://api.coinpaprika.com/v1/coins/${id}/ohlcv/historical`,
+      {
+        params: {
+          start: startTimestamp,
+          end: endTimestamp
+        }
+      }
+    );
+    
+    if (response.data) {
+      return response.data.map(item => [
+        new Date(item.time_open).getTime(),
+        item.close
+      ]);
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching price history from Coinpaprika:', error);
+    return null;
+  }
+};
+
+// Farklı API'lerden veri çeken birleşik fonksiyon
+const fetchPriceHistory = async (id, symbol, days = '7') => {
+  // Önce CoinGecko API'den deneyelim
+  let data = await fetchPriceHistoryCoinGecko(id, days);
+  
+  // Eğer CoinGecko çalışmazsa CryptoCompare API'yi deneyelim
+  if (!data || data.length === 0) {
+    console.log("CoinGecko API failed, trying CryptoCompare API...");
+    data = await fetchPriceHistoryCryptoCompare(symbol, days);
+  }
+  
+  // Eğer CryptoCompare da çalışmazsa Coinpaprika API'yi deneyelim
+  if (!data || data.length === 0) {
+    console.log("CryptoCompare API failed, trying Coinpaprika API...");
+    let coinpaprikaId = `${symbol}-${id}`.toLowerCase();
+    data = await fetchPriceHistoryCoinpaprika(coinpaprikaId, days);
+  }
+  
+  return data;
 };
 
 const CoinDetail = () => {
@@ -425,15 +520,16 @@ const CoinDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [activeTab, setActiveTab] = useState('24h');
   const [priceHistory, setPriceHistory] = useState(null);
   const [timeRange, setTimeRange] = useState('7d');
+  const [chartError, setChartError] = useState(null);
   
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
+        setChartError(null);
 
         // Fetch coin details
         const coinResponse = await axios.get(
@@ -449,6 +545,14 @@ const CoinDetail = () => {
             }
           }
         );
+        
+        setCoin(coinResponse.data);
+        
+        // Verify if user has this coin in favorites
+        if (isAuthenticated) {
+          // Logic to check if coin is in favorites would go here
+          setIsFavorite(false);
+        }
 
         // Fetch price history
         const days = timeRange === '24h' ? '1' : 
@@ -457,10 +561,14 @@ const CoinDetail = () => {
                     timeRange === '90d' ? '90' :
                     timeRange === '1y' ? '365' : 'max';
         
-        const historyData = await fetchPriceHistory(id, days);
+        const historyData = await fetchPriceHistory(id, coinResponse.data.symbol, days);
         
-        setCoin(coinResponse.data);
-        setPriceHistory(historyData);
+        if (!historyData || historyData.length === 0) {
+          setChartError('Grafik verisi alınamadı. Lütfen daha sonra tekrar deneyin.');
+        } else {
+          setPriceHistory(historyData);
+        }
+        
       } catch (err) {
         console.error('Error fetching data:', err);
         setError('Veri yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
@@ -470,75 +578,212 @@ const CoinDetail = () => {
     };
 
     fetchData();
-  }, [id, timeRange]);
+  }, [id, timeRange, isAuthenticated]);
   
-  // Mock coin data (Gerçek API'den gelen veri yapısına adapte edilecek)
-  const mockCoin = {
-    id: 'bitcoin',
-    name: 'Bitcoin',
-    symbol: 'btc',
-    market_cap_rank: 1,
-    image: {
-      large: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png'
-    },
-    market_data: {
-      current_price: {
-        usd: 52000
-      },
-      price_change_percentage_24h: 2.5,
-      price_change_percentage_7d: 8.75,
-      price_change_percentage_30d: 15.3,
-      market_cap: {
-        usd: 1010000000000
-      },
-      total_volume: {
-        usd: 32000000000
-      },
-      high_24h: {
-        usd: 53000
-      },
-      low_24h: {
-        usd: 51000
-      },
-      ath: {
-        usd: 69000
-      },
-      ath_date: {
-        usd: '2021-11-10T14:24:11.849Z'
-      },
-      atl: {
-        usd: 67.81
-      },
-      atl_date: {
-        usd: '2013-07-06T00:00:00.000Z'
-      },
-      circulating_supply: 19400000,
-      total_supply: 21000000,
-      max_supply: 21000000
-    },
-    description: {
-      en: "Bitcoin is the first successful internet money based on peer-to-peer technology; whereby no central bank or authority is involved in the transaction and production of the Bitcoin currency. It was created by an anonymous individual/group under the name, Satoshi Nakamoto. The source code is available publicly as an open source project, anybody can look at it and be part of the developmental process.\r\n\r\nBitcoin is changing the way we see money as we speak. The idea was to produce a means of exchange, independent of any central authority, that could be transferred electronically in a secure, verifiable and immutable way. It is a decentralized peer-to-peer internet currency making mobile payment easy, very low transaction fees, protects your identity, and it works anywhere all the time with no central authority and banks.\r\n\r\nBitcoin is designed to have only 21 million BTC ever created, thus making it a deflationary currency. Bitcoin uses the <a href=\"https://www.investopedia.com/terms/h/hash.asp\">SHA-256</a> hashing algorithm with an average transaction confirmation time of 10 minutes. Miners today are mining Bitcoin using ASIC chip dedicated to only mining Bitcoin, and the hash rate has shot up to peta hashes.\r\n\r\nBeing the first successful online cryptography currency, Bitcoin has inspired other alternative currencies such as <a href=\"https://www.coingecko.com/en/coins/litecoin\">Litecoin</a>, <a href=\"https://www.coingecko.com/en/coins/peercoin\">Peercoin</a>, <a href=\"https://www.coingecko.com/en/coins/primecoin\">Primecoin</a>, and so on."
-    },
-    links: {
-      homepage: ["https://bitcoin.org/"],
-      blockchain_site: ["https://blockchair.com/bitcoin/", "https://btc.com/", "https://btc.tokenview.io/"],
-      official_forum_url: ["https://bitcointalk.org/"],
-      chat_url: [""],
-      announcement_url: [""],
-      twitter_screen_name: "bitcoin",
-      facebook_username: "bitcoins",
-      telegram_channel_identifier: "",
-      subreddit_url: "https://www.reddit.com/r/Bitcoin/",
-      repos_url: {
-        github: ["https://github.com/bitcoin/bitcoin"]
-      }
-    },
-    categories: ["Cryptocurrency", "Layer 1 (L1)"]
+  // Don't use mock data - we want to use real API data
+  if (loading) {
+    return <Loading />;
+  }
+  
+  if (error) {
+    return <ErrorMessage message={error} />;
+  }
+  
+  // Make sure we have coin data
+  if (!coin) {
+    return <ErrorMessage message="Coin verisi bulunamadı" />;
+  }
+
+  const formatPrice = (price) => {
+    if (price === undefined || price === null) return 'N/A';
+    
+    // For very small values, use more decimal places
+    const decimals = price < 0.001 ? 8 : price < 0.1 ? 6 : 2;
+    
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: decimals
+    }).format(price);
   };
   
-  // API'den veri henüz gelmemişse mockup verileri kullan
-  const coinData = coin || mockCoin;
+  const formatNumber = (num) => {
+    if (num === undefined || num === null) return 'N/A';
+    
+    return new Intl.NumberFormat('tr-TR', {
+      notation: 'compact',
+      maximumFractionDigits: 2
+    }).format(num);
+  };
   
+  // Improved chart data preparation with better empty data handling
+  const chartData = priceHistory && priceHistory.length > 0 ? {
+    labels: priceHistory.map(item => {
+      const date = new Date(item[0]);
+      if (timeRange === '24h') {
+        return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+      } else if (timeRange === '7d') {
+        return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+      } else if (timeRange === '30d' || timeRange === '90d') {
+        return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+      } else {
+        return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: '2-digit' });
+      }
+    }),
+    datasets: [
+      {
+        label: 'Fiyat',
+        data: priceHistory.map(item => item[1]),
+        borderColor: coin.market_data.price_change_percentage_24h >= 0 ? '#28a745' : '#dc3545',
+        segment: {
+          borderColor: ctx => {
+            // Daha güvenli erişim yöntemleri kullanıyoruz
+            // ctx.p0DataIndex kontrolü yapalım
+            if (ctx.p0DataIndex === undefined || ctx.p1DataIndex === undefined) {
+              return '#28a745'; // Varsayılan renk
+            }
+            
+            // Veri noktalarının indekslerine doğrudan erişelim
+            const index = ctx.p0DataIndex;
+            
+            // Veri dizisinin sınırlarını kontrol edelim
+            if (index >= priceHistory.length - 1) {
+              return '#28a745'; // Varsayılan renk
+            }
+            
+            // Fiyat değişimini doğrudan veri arrayi üzerinden hesaplayalım
+            const startPrice = priceHistory[index][1];
+            const endPrice = priceHistory[index + 1][1];
+            
+            // Artış/düşüş durumuna göre renk döndürelim
+            return endPrice >= startPrice ? '#28a745' : '#dc3545';
+          }
+        },
+        backgroundColor: coin.market_data.price_change_percentage_24h >= 0 ? 'rgba(40, 167, 69, 0.1)' : 'rgba(220, 53, 69, 0.1)',
+        fill: true,
+        tension: 0.4,
+        borderWidth: 2,
+        pointRadius: priceHistory.length > 100 ? 0 : timeRange === '24h' ? 0 : 1,
+        pointHitRadius: 20,
+      }
+    ]
+  } : null;
+  
+  // Improved chart options with better tooltip
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      },
+      tooltip: {
+        mode: 'index',
+        intersect: false,
+        callbacks: {
+          label: function(context) {
+            return `${formatCurrency(context.parsed.y)}`;
+          },
+          title: function(context) {
+            if (!priceHistory || priceHistory.length === 0 || !context[0] || context[0].dataIndex === undefined) {
+              return '';
+            }
+            
+            const date = new Date(priceHistory[context[0].dataIndex][0]);
+            if (timeRange === '24h') {
+              return date.toLocaleString('tr-TR', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                day: 'numeric',
+                month: 'long'
+              });
+            } else {
+              return date.toLocaleDateString('tr-TR', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+              });
+            }
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          color: '#FFD700', // Gold renk
+          maxRotation: 0,
+          autoSkip: true,
+          maxTicksLimit: timeRange === '24h' ? 6 : timeRange === '7d' ? 7 : 10,
+          font: {
+            weight: 'bold',
+            size: 11
+          }
+        },
+        border: {
+          color: '#666666'
+        }
+      },
+      y: {
+        grid: {
+          color: 'rgba(102, 102, 102, 0.3)' // Daha görünür grid çizgileri
+        },
+        ticks: {
+          color: '#FFD700', // Gold renk
+          callback: function(value) {
+            return formatCurrency(value, { notation: 'compact' });
+          },
+          font: {
+            weight: 'bold',
+            size: 11
+          }
+        },
+        border: {
+          color: '#666666'
+        }
+      }
+    },
+    interaction: {
+      intersect: false,
+      mode: 'index'
+    },
+    elements: {
+      point: {
+        radius: 0
+      },
+      line: {
+        borderWidth: 2
+      }
+    }
+  };
+
+  // Render chart section with error handling
+  const renderChart = () => {
+    if (chartError) {
+      return (
+        <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+          <p style={{ color: 'var(--danger)' }}>{chartError}</p>
+        </div>
+      );
+    }
+    
+    if (!chartData) {
+      return (
+        <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+          <Loading />
+        </div>
+      );
+    }
+    
+    // ID ekleyerek chart yeniden render sorununu çözelim
+    const chartId = `price-chart-${id}-${timeRange}`;
+    return <Line key={chartId} id={chartId} data={chartData} options={chartOptions} />;
+  };
+
   const toggleFavorite = () => {
     if (!isAuthenticated) {
       // Kullanıcı giriş yapmamışsa, giriş yapması gerektiğini bildir veya direkt giriş sayfasına yönlendir
@@ -557,100 +802,46 @@ const CoinDetail = () => {
     }
     
     // Portföy ekleme sayfasına yönlendir veya modal göster
-    console.log(`${coinData.name} portföye eklenecek`);
+    console.log(`${coin.name} portföye eklenecek`);
   };
-  
-  if (loading) {
-    return <Loading />;
-  }
-  
-  if (error) {
-    return <ErrorMessage message={error} />;
-  }
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 8
-    }).format(price);
-  };
-  
-  const formatNumber = (num) => {
-    return new Intl.NumberFormat('tr-TR', {
-      notation: 'compact',
-      maximumFractionDigits: 2
-    }).format(num);
-  };
-  
-  const chartData = priceHistory ? {
-    labels: priceHistory.map(item => {
-      const date = new Date(item[0]);
-      return timeRange === '24h' 
-        ? date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
-        : date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
-    }),
-    datasets: [
-      {
-        label: 'Fiyat',
-        data: priceHistory.map(item => item[1]),
-        borderColor: 'var(--primary)',
-        backgroundColor: 'rgba(255, 215, 0, 0.1)',
-        fill: true,
-        tension: 0.4,
-        pointRadius: 0,
-        pointHitRadius: 20,
-      }
-    ]
-  } : null;
-  
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false
-      },
-      tooltip: {
-        mode: 'index',
-        intersect: false,
-        callbacks: {
-          label: function(context) {
-            return `${formatCurrency(context.parsed.y)}`;
-          }
-        }
-      }
-    },
-    scales: {
-      x: {
-        grid: {
-          display: false
-        },
-        ticks: {
-          color: 'var(--subText)',
-          maxRotation: 0,
-          autoSkip: true,
-          maxTicksLimit: 8
-        }
-      },
-      y: {
-        grid: {
-          color: 'var(--border)'
-        },
-        ticks: {
-          color: 'var(--subText)',
-          callback: function(value) {
-            return formatCurrency(value, { notation: 'compact' });
-          }
-        }
-      }
-    },
-    interaction: {
-      intersect: false,
-      mode: 'index'
+  // Özel zaman dilimi butonlarını oluşturalım ve bunları kullanmak için varolan kodu değiştirelim
+  const CustomTimeRangeButton = styled(TimeRangeButton)`
+    background-color: ${props => props.active ? '#3861FB' : '#2a2a2a'};
+    color: ${props => props.active ? '#fff' : '#FFD700'};
+    border: 1px solid ${props => props.active ? '#3861FB' : '#666'};
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-weight: ${props => props.active ? 'bold' : 'normal'};
+    transition: all 0.3s ease;
+    cursor: pointer;
+    
+    &:hover {
+      background-color: ${props => props.active ? '#3861FB' : '#3a3a3a'};
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     }
-  };
+  `;
+
+  const CustomTimeRangeButtons = styled(TimeRangeButtons)`
+    display: flex;
+    gap: 8px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  `;
+
+  // ChartTitle component to make it more attractive
+  const ChartTitle = styled(CardTitle)`
+    font-size: 1.3rem;
+    color: #FFD700;
+    margin-bottom: 1.8rem;
+    
+    svg {
+      color: #FFD700;
+      margin-right: 8px;
+    }
+  `;
 
   return (
     <Container>
@@ -659,17 +850,17 @@ const CoinDetail = () => {
         <BreadcrumbSeparator>/</BreadcrumbSeparator>
         <BreadcrumbItem to="/coins">Kripto Paralar</BreadcrumbItem>
         <BreadcrumbSeparator>/</BreadcrumbSeparator>
-        <CurrentBreadcrumb>{coinData.name}</CurrentBreadcrumb>
+        <CurrentBreadcrumb>{coin.name}</CurrentBreadcrumb>
       </Breadcrumbs>
       
       <Header>
         <CoinInfo>
-          <CoinImage src={coinData.image.large} alt={coinData.name} />
+          <CoinImage src={coin.image.large} alt={coin.name} />
           <CoinTitle>
             <TitleRow>
-              <CoinName>{coinData.name}</CoinName>
-              <CoinSymbol>{coinData.symbol}</CoinSymbol>
-              <CoinRank>Sıra #{coinData.market_cap_rank}</CoinRank>
+              <CoinName>{coin.name}</CoinName>
+              <CoinSymbol>{coin.symbol}</CoinSymbol>
+              <CoinRank>Sıra #{coin.market_cap_rank}</CoinRank>
             </TitleRow>
           </CoinTitle>
         </CoinInfo>
@@ -691,148 +882,119 @@ const CoinDetail = () => {
           <PriceSection>
             <PriceRow>
               <CurrentPrice>
-                {formatCurrency(coinData.market_data.current_price.usd)}
+                {formatCurrency(coin.market_data.current_price.usd)}
               </CurrentPrice>
-              <PriceChange isPositive={coinData.market_data.price_change_percentage_24h >= 0}>
-                {coinData.market_data.price_change_percentage_24h >= 0 ? <FaCaretUp /> : <FaCaretDown />}
-                {Math.abs(coinData.market_data.price_change_percentage_24h).toFixed(2)}%
+              <PriceChange isPositive={coin.market_data.price_change_percentage_24h >= 0}>
+                {coin.market_data.price_change_percentage_24h >= 0 ? <FaCaretUp /> : <FaCaretDown />}
+                {Math.abs(coin.market_data.price_change_percentage_24h).toFixed(2)}%
               </PriceChange>
             </PriceRow>
             
             <PriceDetails>
               <PriceDetailItem>
                 <DetailLabel>24s En Yüksek</DetailLabel>
-                <DetailValue>{formatCurrency(coinData.market_data.high_24h.usd)}</DetailValue>
+                <DetailValue>{formatCurrency(coin.market_data.high_24h.usd)}</DetailValue>
               </PriceDetailItem>
               <PriceDetailItem>
                 <DetailLabel>24s En Düşük</DetailLabel>
-                <DetailValue>{formatCurrency(coinData.market_data.low_24h.usd)}</DetailValue>
+                <DetailValue>{formatCurrency(coin.market_data.low_24h.usd)}</DetailValue>
               </PriceDetailItem>
               <PriceDetailItem>
                 <DetailLabel>7g Değişim</DetailLabel>
-                <DetailValue style={{ color: coinData.market_data.price_change_percentage_7d >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                  {formatPercentage(coinData.market_data.price_change_percentage_7d)}
+                <DetailValue style={{ color: coin.market_data.price_change_percentage_7d >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                  {formatPercentage(coin.market_data.price_change_percentage_7d)}
                 </DetailValue>
               </PriceDetailItem>
               <PriceDetailItem>
                 <DetailLabel>30g Değişim</DetailLabel>
-                <DetailValue style={{ color: coinData.market_data.price_change_percentage_30d >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                  {formatPercentage(coinData.market_data.price_change_percentage_30d)}
+                <DetailValue style={{ color: coin.market_data.price_change_percentage_30d >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                  {formatPercentage(coin.market_data.price_change_percentage_30d)}
                 </DetailValue>
               </PriceDetailItem>
             </PriceDetails>
           </PriceSection>
           
           <Card>
-            <CardTitle>
+            <ChartTitle>
               <FaChartLine /> Fiyat Grafiği
-            </CardTitle>
-            
-            <TabsContainer>
-              <Tab 
-                active={activeTab === '24h'} 
-                onClick={() => setActiveTab('24h')}
-              >
-                24 Saat
-              </Tab>
-              <Tab 
-                active={activeTab === '7d'} 
-                onClick={() => setActiveTab('7d')}
-              >
-                7 Gün
-              </Tab>
-              <Tab 
-                active={activeTab === '30d'} 
-                onClick={() => setActiveTab('30d')}
-              >
-                30 Gün
-              </Tab>
-              <Tab 
-                active={activeTab === '90d'} 
-                onClick={() => setActiveTab('90d')}
-              >
-                90 Gün
-              </Tab>
-              <Tab 
-                active={activeTab === '1y'} 
-                onClick={() => setActiveTab('1y')}
-              >
-                1 Yıl
-              </Tab>
-              <Tab 
-                active={activeTab === 'all'} 
-                onClick={() => setActiveTab('all')}
-              >
-                Tüm Zamanlar
-              </Tab>
-            </TabsContainer>
+            </ChartTitle>
             
             <ChartContainer>
-              <TimeRangeButtons>
-                <TimeRangeButton
+              <CustomTimeRangeButtons>
+                <CustomTimeRangeButton
                   active={timeRange === '24h'}
                   onClick={() => setTimeRange('24h')}
                 >
                   24 Saat
-                </TimeRangeButton>
-                <TimeRangeButton
+                </CustomTimeRangeButton>
+                <CustomTimeRangeButton
                   active={timeRange === '7d'}
                   onClick={() => setTimeRange('7d')}
                 >
                   7 Gün
-                </TimeRangeButton>
-                <TimeRangeButton
+                </CustomTimeRangeButton>
+                <CustomTimeRangeButton
                   active={timeRange === '30d'}
                   onClick={() => setTimeRange('30d')}
                 >
                   30 Gün
-                </TimeRangeButton>
-                <TimeRangeButton
+                </CustomTimeRangeButton>
+                <CustomTimeRangeButton
+                  active={timeRange === '90d'}
+                  onClick={() => setTimeRange('90d')}
+                >
+                  90 Gün
+                </CustomTimeRangeButton>
+                <CustomTimeRangeButton
                   active={timeRange === '1y'}
                   onClick={() => setTimeRange('1y')}
                 >
                   1 Yıl
-                </TimeRangeButton>
-              </TimeRangeButtons>
+                </CustomTimeRangeButton>
+                <CustomTimeRangeButton
+                  active={timeRange === 'all'}
+                  onClick={() => setTimeRange('all')}
+                >
+                  Tüm Zamanlar
+                </CustomTimeRangeButton>
+              </CustomTimeRangeButtons>
               
-              {chartData && (
-                <Line data={chartData} options={chartOptions} />
-              )}
+              {renderChart()}
             </ChartContainer>
           </Card>
           
           <AboutSection>
             <Card>
               <CardTitle>
-                <FaFileAlt /> {coinData.name} Hakkında
+                <FaFileAlt /> {coin.name} Hakkında
               </CardTitle>
               
-              <Description dangerouslySetInnerHTML={{ __html: coinData.description.en }} />
+              <Description dangerouslySetInnerHTML={{ __html: coin.description.en }} />
               
               <LinksGrid>
-                {coinData.links.homepage[0] && (
-                  <LinkItem href={coinData.links.homepage[0]} target="_blank" rel="noopener noreferrer">
+                {coin.links.homepage[0] && (
+                  <LinkItem href={coin.links.homepage[0]} target="_blank" rel="noopener noreferrer">
                     <FaGlobe />
                     <LinkText>Resmi Web Sitesi</LinkText>
                   </LinkItem>
                 )}
                 
-                {coinData.links.repos_url.github[0] && (
-                  <LinkItem href={coinData.links.repos_url.github[0]} target="_blank" rel="noopener noreferrer">
+                {coin.links.repos_url.github[0] && (
+                  <LinkItem href={coin.links.repos_url.github[0]} target="_blank" rel="noopener noreferrer">
                     <FaGithub />
                     <LinkText>GitHub</LinkText>
                   </LinkItem>
                 )}
                 
-                {coinData.links.twitter_screen_name && (
-                  <LinkItem href={`https://twitter.com/${coinData.links.twitter_screen_name}`} target="_blank" rel="noopener noreferrer">
+                {coin.links.twitter_screen_name && (
+                  <LinkItem href={`https://twitter.com/${coin.links.twitter_screen_name}`} target="_blank" rel="noopener noreferrer">
                     <FaTwitter />
                     <LinkText>Twitter</LinkText>
                   </LinkItem>
                 )}
                 
-                {coinData.links.subreddit_url && (
-                  <LinkItem href={coinData.links.subreddit_url} target="_blank" rel="noopener noreferrer">
+                {coin.links.subreddit_url && (
+                  <LinkItem href={coin.links.subreddit_url} target="_blank" rel="noopener noreferrer">
                     <FaReddit />
                     <LinkText>Reddit</LinkText>
                   </LinkItem>
@@ -851,24 +1013,24 @@ const CoinDetail = () => {
             <StatsSection>
               <StatItem>
                 <StatLabel>Piyasa Değeri</StatLabel>
-                <StatValue>{formatCurrency(coinData.market_data.market_cap.usd, { notation: 'compact' })}</StatValue>
+                <StatValue>{formatCurrency(coin.market_data.market_cap.usd, { notation: 'compact' })}</StatValue>
               </StatItem>
               
               <StatItem>
                 <StatLabel>24s Hacim</StatLabel>
-                <StatValue>{formatCurrency(coinData.market_data.total_volume.usd, { notation: 'compact' })}</StatValue>
+                <StatValue>{formatCurrency(coin.market_data.total_volume.usd, { notation: 'compact' })}</StatValue>
               </StatItem>
               
               <StatItem>
                 <StatLabel>Dolaşımdaki Arz</StatLabel>
-                <StatValue>{formatCurrency(coinData.market_data.circulating_supply, { style: 'decimal', notation: 'compact' })}</StatValue>
+                <StatValue>{formatCurrency(coin.market_data.circulating_supply, { style: 'decimal', notation: 'compact' })}</StatValue>
               </StatItem>
               
               <StatItem>
                 <StatLabel>Toplam Arz</StatLabel>
                 <StatValue>
-                  {coinData.market_data.total_supply 
-                    ? formatCurrency(coinData.market_data.total_supply, { style: 'decimal', notation: 'compact' })
+                  {coin.market_data.total_supply 
+                    ? formatCurrency(coin.market_data.total_supply, { style: 'decimal', notation: 'compact' })
                     : 'Sınırsız'}
                 </StatValue>
               </StatItem>
@@ -876,30 +1038,30 @@ const CoinDetail = () => {
               <StatItem>
                 <StatLabel>Maksimum Arz</StatLabel>
                 <StatValue>
-                  {coinData.market_data.max_supply 
-                    ? formatCurrency(coinData.market_data.max_supply, { style: 'decimal', notation: 'compact' })
+                  {coin.market_data.max_supply 
+                    ? formatCurrency(coin.market_data.max_supply, { style: 'decimal', notation: 'compact' })
                     : 'Belirtilmemiş'}
                 </StatValue>
               </StatItem>
               
               <StatItem>
                 <StatLabel>Tüm Zamanların En Yükseği</StatLabel>
-                <StatValue>{formatCurrency(coinData.market_data.ath.usd)}</StatValue>
+                <StatValue>{formatCurrency(coin.market_data.ath.usd)}</StatValue>
               </StatItem>
               
               <StatItem>
                 <StatLabel>ATH Tarihi</StatLabel>
-                <StatValue>{formatDate(coinData.market_data.ath_date.usd)}</StatValue>
+                <StatValue>{formatDate(coin.market_data.ath_date.usd)}</StatValue>
               </StatItem>
               
               <StatItem>
                 <StatLabel>Tüm Zamanların En Düşüğü</StatLabel>
-                <StatValue>{formatCurrency(coinData.market_data.atl.usd)}</StatValue>
+                <StatValue>{formatCurrency(coin.market_data.atl.usd)}</StatValue>
               </StatItem>
               
               <StatItem>
                 <StatLabel>ATL Tarihi</StatLabel>
-                <StatValue>{formatDate(coinData.market_data.atl_date.usd)}</StatValue>
+                <StatValue>{formatDate(coin.market_data.atl_date.usd)}</StatValue>
               </StatItem>
             </StatsSection>
           </Card>
