@@ -4,16 +4,16 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // Firebase yapılandırma bilgileri
-// Bu bilgileri Firebase konsolundan alabilirsiniz
-// Proje Ayarları > Genel > Firebase SDK snippet > Yapılandırma
+// NOT: Gerçek projede bu değerleri .env dosyasından almalısınız
+// şu an geliştirme aşamasında olduğumuz için doğrudan buraya ekliyoruz
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+  apiKey: "YOUR_API_KEY", // Firebase konsolundan alınacak
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com", // örn: my-project-id.firebaseapp.com
+  projectId: "YOUR_PROJECT_ID", // örn: my-project-id
+  storageBucket: "YOUR_PROJECT_ID.appspot.com", // örn: my-project-id.appspot.com
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // örn: 123456789012
+  appId: "YOUR_APP_ID", // örn: 1:123456789012:web:abc123def456
+  measurementId: "YOUR_MEASUREMENT_ID" // örn: G-ABC123DEF456
 };
 
 // Firebase'i başlat
