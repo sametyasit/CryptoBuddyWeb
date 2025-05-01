@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { FaEnvelope, FaCheckCircle } from 'react-icons/fa';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
+import Loading from '../components/Loading';
 
 const Container = styled.div`
   max-width: 400px;
@@ -102,6 +103,9 @@ const Error = styled.div`
   font-size: 0.875rem;
   margin-top: 0.5rem;
   text-align: center;
+  padding: 8px;
+  background-color: rgba(244, 67, 54, 0.1);
+  border-radius: 4px;
 `;
 
 const Success = styled.div`
@@ -113,6 +117,9 @@ const Success = styled.div`
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  padding: 16px;
+  background-color: rgba(76, 175, 80, 0.1);
+  border-radius: 4px;
 `;
 
 const BackToLogin = styled(Link)`
@@ -133,7 +140,7 @@ const ForgotPassword = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const { resetPassword } = useAuth();
+  const { forgotPassword } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -146,9 +153,15 @@ const ForgotPassword = () => {
       setError('');
       setMessage('');
       setLoading(true);
-      await resetPassword(email);
-      setMessage('Şifre sıfırlama bağlantısı email adresinize gönderildi.');
-      setEmail('');
+      
+      const response = await forgotPassword(email);
+      
+      if (response.success) {
+        setMessage('Şifre sıfırlama bağlantısı email adresinize gönderildi. Lütfen e-posta kutunuzu kontrol edin.');
+        setEmail('');
+      } else {
+        setError(response.error || 'Bir hata oluştu. Lütfen tekrar deneyin.');
+      }
     } catch (err) {
       console.error('Password reset error:', err);
       setError('Şifre sıfırlama işlemi başarısız oldu. Lütfen tekrar deneyin.');
@@ -188,7 +201,7 @@ const ForgotPassword = () => {
         )}
 
         <Button type="submit" disabled={loading}>
-          {loading ? 'Gönderiliyor...' : 'Şifre Sıfırlama Bağlantısı Gönder'}
+          {loading ? <Loading small message="Gönderiliyor..." /> : 'Şifre Sıfırlama Bağlantısı Gönder'}
         </Button>
       </Form>
 

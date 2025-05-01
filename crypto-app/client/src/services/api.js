@@ -92,6 +92,16 @@ export const authAPI = {
     }
   },
   
+  // Şifre sıfırlama token kontrolü
+  verifyResetToken: async (token) => {
+    try {
+      const response = await api.post('/auth/verify-reset-token', { token });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
   // Şifre sıfırlama
   resetPassword: async (token, newPassword) => {
     try {

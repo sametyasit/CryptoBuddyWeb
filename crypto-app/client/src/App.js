@@ -10,6 +10,7 @@ import About from './pages/About';
 import AIBasket from './pages/AIBasket';
 import Profile from './pages/Profile';
 import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import CoinDetail from './pages/CoinDetail';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -60,6 +61,10 @@ const AnimatedRoutes = () => {
         <Route 
           path="/forgot-password" 
           element={<ForgotPassword />} 
+        />
+        <Route 
+          path="/reset-password/:token" 
+          element={<ResetPassword />} 
         />
         <Route 
           path="/coin/:id" 

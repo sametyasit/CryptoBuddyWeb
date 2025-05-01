@@ -149,6 +149,42 @@ export const AuthProvider = ({ children }) => {
     }
   };
   
+  // Şifre sıfırlama token kontrolü
+  const verifyResetToken = async (token) => {
+    try {
+      setError(null);
+      setIsLoading(true);
+      
+      await authAPI.verifyResetToken(token);
+      
+      return { success: true };
+    } catch (err) {
+      console.error('Token doğrulama hatası:', err);
+      setError(err.message || 'Şifre sıfırlama linki geçersiz veya süresi dolmuş.');
+      return { success: false, error: err.message || 'Şifre sıfırlama linki geçersiz veya süresi dolmuş.' };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Şifre sıfırlama
+  const resetPassword = async (token, newPassword) => {
+    try {
+      setError(null);
+      setIsLoading(true);
+      
+      await authAPI.resetPassword(token, newPassword);
+      
+      return { success: true };
+    } catch (err) {
+      console.error('Şifre sıfırlama hatası:', err);
+      setError(err.message || 'Şifre sıfırlarken bir hata oluştu.');
+      return { success: false, error: err.message || 'Şifre sıfırlarken bir hata oluştu.' };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   // E-posta doğrulama işlevi
   const verifyEmail = async (token) => {
     try {
@@ -197,6 +233,8 @@ export const AuthProvider = ({ children }) => {
     logout,
     changePassword,
     forgotPassword,
+    resetPassword,
+    verifyResetToken,
     verifyEmail,
     updateProfile
   };
