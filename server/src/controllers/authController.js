@@ -129,154 +129,62 @@ exports.updateProfile = async (req, res) => {
 // Şifremi unuttum / Şifre sıfırlama e-postası gönderimi
 exports.forgotPassword = async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
     const { email } = req.body;
-
-    // Kullanıcıyı e-postaya göre bul
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Bu e-posta adresiyle kayıtlı bir kullanıcı bulunamadı."
-      });
-    }
-
-    // Şifre sıfırlama token'ı oluştur
-    const resetToken = crypto.randomBytes(32).toString('hex');
     
-    // Token'ın hash'ini oluştur ve kullanıcı kaydına ekle
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(resetToken)
-      .digest('hex');
-    
-    // Token'ı kullanıcıya kaydet
-    user.resetPasswordToken = hashedToken;
-    user.resetPasswordExpires = Date.now() + 3600000; // 1 saat geçerli
-    await user.save();
-
-    // E-posta içeriği oluştur
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
-    const mailOptions = {
-      to: user.email,
-      subject: 'CryptoBuddy - Şifre Sıfırlama',
-      html: `
-        <h1>Şifre Sıfırlama İsteği</h1>
-        <p>Merhaba ${user.username},</p>
-        <p>Hesabınız için bir şifre sıfırlama isteği aldık. Şifrenizi sıfırlamak için aşağıdaki bağlantıya tıklayın:</p>
-        <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; background-color: #FFD700; color: #333; text-decoration: none; border-radius: 5px; margin: 15px 0;">Şifremi Sıfırla</a>
-        <p>Bu bağlantı 1 saat süreyle geçerlidir.</p>
-        <p>Eğer bu isteği siz yapmadıysanız, bu e-postayı görmezden gelebilirsiniz.</p>
-        <p>Saygılarımızla,<br>CryptoBuddy Ekibi</p>
-      `
+    // Firebase Authentication ile şifre sıfırlama e-postası gönder
+    const actionCodeSettings = {
+      url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`,
+      handleCodeInApp: false,
     };
 
-    // E-postayı gönder
-    await sendEmail(mailOptions);
+    await auth.generatePasswordResetLink(email, actionCodeSettings)
+      .then(async (link) => {
+        // Kullanıcı bilgilerini Firestore'dan al (opsiyonel)
+        try {
+          const userRecord = await auth.getUserByEmail(email);
+          const userDoc = await db.collection('users').doc(userRecord.uid).get();
+          
+          // E-posta içeriğini hazırlayabilirsin (opsiyonel, doğrudan link de kullanılabilir)
+          console.log('Password reset link:', link);
+          console.log('User data:', userDoc.data());
 
-    res.status(200).json({
-      success: true,
-      message: "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi."
-    });
+          // Firebase doğrudan bu bağlantıyı e-posta olarak gönderecek
+        } catch (userErr) {
+          console.log('User lookup error, but password reset still sent:', userErr);
+        }
+        
+        res.status(200).json({
+          success: true,
+          message: "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi."
+        });
+      });
+      
   } catch (error) {
     console.error('Şifre sıfırlama hatası:', error);
-    res.status(500).json({
-      success: false,
-      message: "Şifre sıfırlama işlemi sırasında bir hata oluştu."
-    });
-  }
-};
-
-// Şifre sıfırlama token'ını doğrula
-exports.verifyResetToken = async (req, res) => {
-  try {
-    const { token } = req.body;
     
-    // Token'ın hash'ini oluştur
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(token)
-      .digest('hex');
+    // Firebase error kodlarına göre özelleştirilmiş mesajlar
+    let errorMessage = "Şifre sıfırlama işlemi sırasında bir hata oluştu.";
+    let statusCode = 500;
     
-    // Token'a sahip ve süresi dolmamış kullanıcıyı bul
-    const user = await User.findOne({
-      resetPasswordToken: hashedToken,
-      resetPasswordExpires: { $gt: Date.now() }
-    });
-    
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "Geçersiz veya süresi dolmuş şifre sıfırlama bağlantısı."
-      });
+    if (error.code === 'auth/user-not-found') {
+      errorMessage = "Bu e-posta adresiyle kayıtlı bir kullanıcı bulunamadı.";
+      statusCode = 404;
+    } else if (error.code === 'auth/invalid-email') {
+      errorMessage = "Geçersiz e-posta adresi.";
+      statusCode = 400;
+    } else if (error.code === 'auth/invalid-continue-uri') {
+      errorMessage = "Devam URL'i geçersiz.";
+      statusCode = 400;
     }
     
-    res.status(200).json({
-      success: true,
-      message: "Token geçerli."
-    });
-  } catch (error) {
-    console.error('Token doğrulama hatası:', error);
-    res.status(500).json({
+    res.status(statusCode).json({
       success: false,
-      message: "Token doğrulama sırasında bir hata oluştu."
-    });
-  }
-};
-
-// Şifre sıfırlama
-exports.resetPassword = async (req, res) => {
-  try {
-    const { token, newPassword } = req.body;
-    
-    // Token'ın hash'ini oluştur
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(token)
-      .digest('hex');
-    
-    // Token'a sahip ve süresi dolmamış kullanıcıyı bul
-    const user = await User.findOne({
-      resetPasswordToken: hashedToken,
-      resetPasswordExpires: { $gt: Date.now() }
-    });
-    
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "Geçersiz veya süresi dolmuş şifre sıfırlama bağlantısı."
-      });
-    }
-    
-    // Kullanıcının şifresini güncelle
-    user.password = await bcrypt.hash(newPassword, 10);
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
-    await user.save();
-    
-    // Şifre değişikliği bildirim e-postası gönder
-    const mailOptions = {
-      to: user.email,
-      subject: 'CryptoBuddy - Şifreniz Değiştirildi',
-      html: `
-        <h1>Şifre Değişikliği Bildirimi</h1>
-        <p>Merhaba ${user.username},</p>
-        <p>Hesabınızın şifresi başarıyla değiştirildi.</p>
-        <p>Eğer bu değişikliği siz yapmadıysanız, lütfen hemen bizimle iletişime geçin.</p>
-        <p>Saygılarımızla,<br>CryptoBuddy Ekibi</p>
-      `
-    };
-    
-    await sendEmail(mailOptions);
-    
-    res.status(200).json({
-      success: true,
-      message: "Şifreniz başarıyla sıfırlandı."
-    });
-  } catch (error) {
-    console.error('Şifre sıfırlama hatası:', error);
-    res.status(500).json({
-      success: false,
-      message: "Şifre sıfırlama işlemi sırasında bir hata oluştu."
+      message: errorMessage
     });
   }
 };

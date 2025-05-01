@@ -157,7 +157,7 @@ const ForgotPassword = () => {
       const response = await forgotPassword(email);
       
       if (response.success) {
-        setMessage('Şifre sıfırlama bağlantısı email adresinize gönderildi. Lütfen e-posta kutunuzu kontrol edin.');
+        setMessage('Şifre sıfırlama bağlantısı email adresinize gönderildi. Lütfen e-posta kutunuzu kontrol edin. Bağlantıya tıkladığınızda şifrenizi yeniden belirleyebileceksiniz.');
         setEmail('');
       } else {
         setError(response.error || 'Bir hata oluştu. Lütfen tekrar deneyin.');

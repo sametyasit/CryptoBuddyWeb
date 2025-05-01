@@ -1,5 +1,15 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  sendPasswordResetEmail,
+  onAuthStateChanged,
+  signOut,
+  updatePassword
+} from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, firestore } from '../config/firebase';
 import { authAPI } from '../services/api';
 
 export const AuthContext = createContext();
@@ -12,35 +22,42 @@ export const AuthProvider = ({ children }) => {
   
   const navigate = useNavigate();
   
-  // Sayfa yüklendiğinde oturum durumunu kontrol et
+  // Firebase Auth State değişikliklerini dinle
   useEffect(() => {
-    const checkAuthStatus = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        
-        if (!token) {
-          setIsLoading(false);
-          return;
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setIsLoading(true);
+      
+      if (user) {
+        // Firestore'dan kullanıcı bilgilerini al
+        try {
+          const userDocRef = doc(firestore, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setCurrentUser({
+              id: user.uid,
+              email: user.email,
+              username: userData.username,
+              ...userData
+            });
+            setIsAuthenticated(true);
+          } else {
+            console.error('Kullanıcı belgesi bulunamadı');
+          }
+        } catch (err) {
+          console.error('Kullanıcı verileri alınırken hata oluştu:', err);
         }
-        
-        // Token ile kullanıcı bilgilerini getir
-        const userData = await authAPI.getCurrentUser();
-        
-        if (userData) {
-          setCurrentUser(userData);
-          setIsAuthenticated(true);
-        }
-      } catch (err) {
-        console.error('Kimlik doğrulama hatası:', err);
-        // Hatalı veya süresi dolmuş token varsa kaldır
-        localStorage.removeItem('token');
-        setError('Oturum süreniz dolmuş. Lütfen tekrar giriş yapın.');
-      } finally {
-        setIsLoading(false);
+      } else {
+        setCurrentUser(null);
+        setIsAuthenticated(false);
       }
-    };
+      
+      setIsLoading(false);
+    });
     
-    checkAuthStatus();
+    // Component unmount edildiğinde dinlemeyi durdur
+    return () => unsubscribe();
   }, []);
   
   // Giriş işlemi
@@ -49,22 +66,46 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       setIsLoading(true);
       
-      const data = await authAPI.login(email, password);
+      // Firebase Authentication ile giriş yap
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
       
-      // Token'ı localStorage'a kaydet
-      localStorage.setItem('token', data.token);
+      // Firestore'dan kullanıcı bilgilerini al
+      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
       
-      // Kullanıcı bilgilerini al
-      const userData = await authAPI.getCurrentUser();
-      
-      setCurrentUser(userData);
-      setIsAuthenticated(true);
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setCurrentUser({
+          id: user.uid,
+          email: user.email,
+          username: userData.username,
+          ...userData
+        });
+        setIsAuthenticated(true);
+      }
       
       return { success: true };
     } catch (err) {
       console.error('Giriş hatası:', err);
-      setError(err.message || 'Giriş yapılırken bir hata oluştu.');
-      return { success: false, error: err.message || 'Giriş yapılırken bir hata oluştu.' };
+      let errorMessage = 'Giriş yapılırken bir hata oluştu.';
+      
+      // Firebase hata kodlarına göre özelleştirilmiş mesajlar
+      switch (err.code) {
+        case 'auth/invalid-credential':
+          errorMessage = 'E-posta veya şifre hatalı.';
+          break;
+        case 'auth/user-not-found':
+          errorMessage = 'Bu e-posta adresine kayıtlı bir kullanıcı bulunamadı.';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'Şifre hatalı.';
+          break;
+        default:
+          errorMessage = err.message || 'Giriş yapılırken bir hata oluştu.';
+      }
+      
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
     }
@@ -76,41 +117,65 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       setIsLoading(true);
       
-      await authAPI.register(username, email, password);
+      // Firebase Authentication ile kullanıcı oluştur
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
       
-      // Kayıt başarılı olduktan sonra otomatik giriş yap
-      const loginData = await authAPI.login(email, password);
+      // Firestore'a kullanıcı bilgilerini kaydet
+      await setDoc(doc(firestore, 'users', user.uid), {
+        username,
+        email,
+        createdAt: new Date(),
+        favorites: [],
+        portfolio: [],
+        alerts: []
+      });
       
-      // Token'ı localStorage'a kaydet
-      localStorage.setItem('token', loginData.token);
-      
-      // Kullanıcı bilgilerini al
-      const userData = await authAPI.getCurrentUser();
-      
-      setCurrentUser(userData);
+      setCurrentUser({
+        id: user.uid,
+        email,
+        username
+      });
       setIsAuthenticated(true);
       
       return { success: true };
     } catch (err) {
       console.error('Kayıt hatası:', err);
-      setError(err.message || 'Kayıt olurken bir hata oluştu.');
-      return { success: false, error: err.message || 'Kayıt olurken bir hata oluştu.' };
+      let errorMessage = 'Kayıt olurken bir hata oluştu.';
+      
+      // Firebase hata kodlarına göre özelleştirilmiş mesajlar
+      switch (err.code) {
+        case 'auth/email-already-in-use':
+          errorMessage = 'Bu e-posta adresi zaten kullanılıyor.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Geçersiz e-posta adresi.';
+          break;
+        case 'auth/weak-password':
+          errorMessage = 'Şifre çok zayıf. En az 6 karakter kullanın.';
+          break;
+        default:
+          errorMessage = err.message || 'Kayıt olurken bir hata oluştu.';
+      }
+      
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
     }
   };
   
   // Çıkış işlemi
-  const logout = () => {
-    // Token'ı localStorage'dan kaldır
-    localStorage.removeItem('token');
-    
-    // Auth state'i sıfırla
-    setCurrentUser(null);
-    setIsAuthenticated(false);
-    
-    // Ana sayfaya yönlendir
-    navigate('/');
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      setCurrentUser(null);
+      setIsAuthenticated(false);
+      navigate('/');
+    } catch (err) {
+      console.error('Çıkış hatası:', err);
+      setError('Çıkış yapılırken bir hata oluştu.');
+    }
   };
   
   // Şifre değiştirme işlemi
@@ -119,13 +184,31 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       setIsLoading(true);
       
-      await authAPI.changePassword(currentPassword, newPassword);
-      
-      return { success: true };
+      // Önce mevcut şifre ile tekrar giriş yaparak kullanıcıyı doğrula
+      if (auth.currentUser) {
+        const credential = await signInWithEmailAndPassword(
+          auth, 
+          auth.currentUser.email, 
+          currentPassword
+        );
+        
+        // Şifreyi güncelle
+        await updatePassword(auth.currentUser, newPassword);
+        
+        return { success: true };
+      } else {
+        throw new Error('Kullanıcı oturumu bulunamadı');
+      }
     } catch (err) {
       console.error('Şifre değiştirme hatası:', err);
-      setError(err.message || 'Şifre değiştirilirken bir hata oluştu.');
-      return { success: false, error: err.message || 'Şifre değiştirilirken bir hata oluştu.' };
+      let errorMessage = 'Şifre değiştirilirken bir hata oluştu.';
+      
+      if (err.code === 'auth/wrong-password') {
+        errorMessage = 'Mevcut şifre yanlış.';
+      }
+      
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
     }
@@ -137,67 +220,27 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       setIsLoading(true);
       
-      await authAPI.forgotPassword(email);
+      await sendPasswordResetEmail(auth, email);
       
       return { success: true };
     } catch (err) {
       console.error('Şifremi unuttum hatası:', err);
-      setError(err.message || 'Şifre sıfırlama isteğinde bir hata oluştu.');
-      return { success: false, error: err.message || 'Şifre sıfırlama isteğinde bir hata oluştu.' };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Şifre sıfırlama token kontrolü
-  const verifyResetToken = async (token) => {
-    try {
-      setError(null);
-      setIsLoading(true);
+      let errorMessage = 'Şifre sıfırlama isteğinde bir hata oluştu.';
       
-      await authAPI.verifyResetToken(token);
+      // Firebase hata kodlarına göre özelleştirilmiş mesajlar
+      switch (err.code) {
+        case 'auth/user-not-found':
+          errorMessage = 'Bu e-posta adresine kayıtlı bir kullanıcı bulunamadı.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Geçersiz e-posta adresi.';
+          break;
+        default:
+          errorMessage = err.message || 'Şifre sıfırlama isteğinde bir hata oluştu.';
+      }
       
-      return { success: true };
-    } catch (err) {
-      console.error('Token doğrulama hatası:', err);
-      setError(err.message || 'Şifre sıfırlama linki geçersiz veya süresi dolmuş.');
-      return { success: false, error: err.message || 'Şifre sıfırlama linki geçersiz veya süresi dolmuş.' };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Şifre sıfırlama
-  const resetPassword = async (token, newPassword) => {
-    try {
-      setError(null);
-      setIsLoading(true);
-      
-      await authAPI.resetPassword(token, newPassword);
-      
-      return { success: true };
-    } catch (err) {
-      console.error('Şifre sıfırlama hatası:', err);
-      setError(err.message || 'Şifre sıfırlarken bir hata oluştu.');
-      return { success: false, error: err.message || 'Şifre sıfırlarken bir hata oluştu.' };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // E-posta doğrulama işlevi
-  const verifyEmail = async (token) => {
-    try {
-      setError(null);
-      setIsLoading(true);
-      
-      await authAPI.verifyEmail(token);
-      
-      return { success: true };
-    } catch (err) {
-      console.error('E-posta doğrulama hatası:', err);
-      setError(err.message || 'E-posta doğrulanırken bir hata oluştu.');
-      return { success: false, error: err.message || 'E-posta doğrulanırken bir hata oluştu.' };
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
     }
@@ -209,9 +252,17 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       setIsLoading(true);
       
-      const updatedUser = await authAPI.updateProfile(userData);
+      if (!auth.currentUser) {
+        throw new Error('Kullanıcı oturumu bulunamadı');
+      }
       
-      setCurrentUser(updatedUser);
+      const userDocRef = doc(firestore, 'users', auth.currentUser.uid);
+      await setDoc(userDocRef, { ...userData }, { merge: true });
+      
+      setCurrentUser(prevUser => ({
+        ...prevUser,
+        ...userData
+      }));
       
       return { success: true };
     } catch (err) {
@@ -233,9 +284,6 @@ export const AuthProvider = ({ children }) => {
     logout,
     changePassword,
     forgotPassword,
-    resetPassword,
-    verifyResetToken,
-    verifyEmail,
     updateProfile
   };
   
