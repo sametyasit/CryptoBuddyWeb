@@ -4,17 +4,19 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // Firebase yapılandırma bilgileri
-// NOT: Gerçek projede bu değerleri .env dosyasından almalısınız
-// şu an geliştirme aşamasında olduğumuz için doğrudan buraya ekliyoruz
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY", // Firebase konsolundan alınacak
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com", // örn: my-project-id.firebaseapp.com
-  projectId: "YOUR_PROJECT_ID", // örn: my-project-id
-  storageBucket: "YOUR_PROJECT_ID.appspot.com", // örn: my-project-id.appspot.com
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // örn: 123456789012
-  appId: "YOUR_APP_ID", // örn: 1:123456789012:web:abc123def456
-  measurementId: "YOUR_MEASUREMENT_ID" // örn: G-ABC123DEF456
+  apiKey: "AIzaSyDe9iqGEiEYRRTAjacJ5cS7V8TBNzXVn8M",
+  authDomain: "cryptobuddy-96401.firebaseapp.com",
+  databaseURL: "https://cryptobuddy-96401-default-rtdb.firebaseio.com",
+  projectId: "cryptobuddy-96401",
+  storageBucket: "cryptobuddy-96401.firebasestorage.app",
+  messagingSenderId: "130424959201",
+  appId: "1:130424959201:web:3bb57b690f8fdfb75587a0",
+  measurementId: "G-XTV3DXK36B"
 };
+
+// Debug - Bu değerleri konsola yazdırarak kontrol ediyoruz
+console.log("Firebase Config:", firebaseConfig);
 
 // Firebase'i başlat
 const app = initializeApp(firebaseConfig);
