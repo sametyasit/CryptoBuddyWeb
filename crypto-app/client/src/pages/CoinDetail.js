@@ -35,6 +35,7 @@ import {
 } from 'chart.js';
 import { TimeRangeButtons, TimeRangeButton } from '../components/TimeRangeButton';
 import axios from 'axios';
+import { saveFavoriteCoin, removeFavoriteCoin } from '../services/firestoreService';
 
 ChartJS.register(
   CategoryScale,
@@ -515,7 +516,7 @@ const fetchPriceHistory = async (id, symbol, days = '7') => {
 
 const CoinDetail = () => {
   const { id } = useParams();
-  const { isAuthenticated } = useAuth();
+  const { user, userProfile } = useAuth();
   const [coin, setCoin] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -549,9 +550,10 @@ const CoinDetail = () => {
         setCoin(coinResponse.data);
         
         // Verify if user has this coin in favorites
-        if (isAuthenticated) {
-          // Logic to check if coin is in favorites would go here
-          setIsFavorite(false);
+        if (user && userProfile) {
+          // Firestore'dan gelen kullanıcı profilinde favorileri kontrol et
+          const favorites = userProfile.favorites || [];
+          setIsFavorite(favorites.includes(id));
         }
 
         // Fetch price history
@@ -578,7 +580,7 @@ const CoinDetail = () => {
     };
 
     fetchData();
-  }, [id, timeRange, isAuthenticated]);
+  }, [id, timeRange, user, userProfile]);
   
   // Don't use mock data - we want to use real API data
   if (loading) {
@@ -784,19 +786,30 @@ const CoinDetail = () => {
     return <Line key={chartId} id={chartId} data={chartData} options={chartOptions} />;
   };
 
-  const toggleFavorite = () => {
-    if (!isAuthenticated) {
-      // Kullanıcı giriş yapmamışsa, giriş yapması gerektiğini bildir veya direkt giriş sayfasına yönlendir
+  const toggleFavorite = async () => {
+    if (!user) {
+      // Kullanıcı giriş yapmamışsa, giriş yapması gerektiğini bildir
       alert('Favorilere eklemek için giriş yapmalısınız');
       return;
     }
     
-    setIsFavorite(!isFavorite);
-    // Burada API çağrısı yapılarak favori durumu güncellenebilir
+    try {
+      if (isFavorite) {
+        // Favorilerden çıkar
+        await removeFavoriteCoin(user.uid, id);
+      } else {
+        // Favorilere ekle
+        await saveFavoriteCoin(user.uid, id);
+      }
+      setIsFavorite(!isFavorite);
+    } catch (error) {
+      console.error('Favori işlemi sırasında hata:', error);
+      alert('Favori işlemi sırasında bir hata oluştu.');
+    }
   };
   
   const handleAddToPortfolio = () => {
-    if (!isAuthenticated) {
+    if (!user) {
       alert('Portföye eklemek için giriş yapmalısınız');
       return;
     }
