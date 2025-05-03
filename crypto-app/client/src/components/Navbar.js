@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { FaSun, FaMoon, FaBars, FaTimes, FaChevronDown } from 'react-icons/fa';
+import { FaSun, FaMoon, FaBars, FaTimes, FaChevronDown, FaUser } from 'react-icons/fa';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -15,7 +15,7 @@ const Nav = styled.nav`
 `;
 
 const NavContainer = styled.div`
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
@@ -27,6 +27,7 @@ const Logo = styled(Link)`
   text-decoration: none;
   font-size: 1.5rem;
   font-weight: bold;
+  margin-right: 2rem;
   
   span {
     color: var(--primary);
@@ -49,7 +50,7 @@ const MenuButton = styled.button`
 const NavLinks = styled.div`
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 2.5rem;
   
   @media (max-width: 768px) {
     display: ${props => props.isOpen ? 'flex' : 'none'};
@@ -80,8 +81,9 @@ const DropdownButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.3rem;
-  min-width: 110px;
+  gap: 0.5rem;
+  min-width: 130px;
+  font-size: 1rem;
   
   &:hover {
     color: var(--primary);
@@ -92,16 +94,16 @@ const DropdownContent = styled.div`
   display: ${props => props.isOpen ? 'block' : 'none'};
   position: absolute;
   background-color: var(--cardBackground);
-  min-width: 160px;
+  min-width: 180px;
   box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
   z-index: 1;
-  border-radius: 4px;
+  border-radius: 8px;
   overflow: hidden;
+  margin-top: 0.5rem;
   
   @media (max-width: 768px) {
     position: relative;
     box-shadow: none;
-    margin-top: 0.5rem;
   }
 `;
 
@@ -124,6 +126,7 @@ const NavLink = styled(Link)`
   transition: color 0.3s ease;
   min-width: 110px;
   text-align: center;
+  font-size: 1rem;
   
   &:hover {
     color: var(--primary);
@@ -149,15 +152,17 @@ const ThemeToggle = styled.button`
 
 const AuthButtons = styled.div`
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
+  margin-left: 1rem;
 `;
 
 const AuthButton = styled(Link)`
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
+  padding: 0.5rem 1.2rem;
+  border-radius: 6px;
   text-decoration: none;
   font-weight: 500;
   transition: all 0.3s ease;
+  font-size: 1rem;
   
   ${props => props.primary ? `
     background-color: var(--primary);
@@ -177,9 +182,55 @@ const AuthButton = styled(Link)`
   `}
 `;
 
+const ProfileContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+`;
+
+const ProfileLink = styled(Link)`
+  display: flex;
+  align-items: center;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background-color: var(--hover);
+    color: var(--primary);
+  }
+  
+  .username {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+`;
+
+const LogoutButton = styled.button`
+  padding: 0.5rem 1.2rem;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  
+  &:hover {
+    background-color: var(--hover);
+  }
+`;
+
 const Navbar = () => {
   const { theme, toggleTheme } = useTheme();
-  const { currentUser, logout } = useAuth();
+  const { isAuthenticated, currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isTransactionsOpen, setIsTransactionsOpen] = useState(false);
@@ -248,12 +299,15 @@ const Navbar = () => {
             {theme === 'light' ? <FaMoon /> : <FaSun />}
           </ThemeToggle>
           
-          {currentUser ? (
-            <>
+          {isAuthenticated && currentUser ? (
+            <ProfileContainer>
               <NavLink to="/portfolio">Portföy</NavLink>
-              <NavLink to="/profile">Profil</NavLink>
-              <AuthButton onClick={handleLogout}>Çıkış Yap</AuthButton>
-            </>
+              <ProfileLink to="/profile">
+                <FaUser />
+                <span className="username">{currentUser.username || currentUser.email.split('@')[0]}</span>
+              </ProfileLink>
+              <LogoutButton onClick={handleLogout}>Çıkış Yap</LogoutButton>
+            </ProfileContainer>
           ) : (
             <AuthButtons>
               <AuthButton to="/login">Giriş Yap</AuthButton>
