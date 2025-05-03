@@ -1,9 +1,10 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import Loading from '../components/Loading';
 import ErrorMessage from '../components/ErrorMessage';
+import { FaGoogle } from 'react-icons/fa';
 
 const Container = styled.div`
   max-width: 400px;
@@ -71,6 +72,10 @@ const Button = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
   
   &:hover {
     opacity: 0.9;
@@ -81,6 +86,15 @@ const Button = styled.button`
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
+  }
+`;
+
+const GoogleButton = styled(Button)`
+  background-color: #4285F4;
+  margin-top: 1rem;
+  
+  &:hover {
+    background-color: #357ae8;
   }
 `;
 
@@ -116,7 +130,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { login } = useContext(AuthContext);
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   
   const handleSubmit = async (e) => {
@@ -126,14 +140,37 @@ const Login = () => {
     
     try {
       const result = await login(email, password);
-      
       if (result.success) {
         navigate('/');
-      } else {
+      } else if (result.error) {
         setError(result.error);
       }
     } catch (err) {
-      setError('Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.');
+      console.error("Login error:", err);
+      setError(
+        err.code === 'auth/user-not-found' 
+          ? 'Bu e-posta adresine sahip bir kullanıcı bulunamadı.' 
+          : err.code === 'auth/wrong-password'
+          ? 'Yanlış şifre girdiniz.' 
+          : err.code === 'auth/invalid-email'
+          ? 'Geçersiz e-posta adresi.'
+          : 'Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleGoogleLogin = async () => {
+    setError(null);
+    setLoading(true);
+    
+    try {
+      await loginWithGoogle();
+      navigate('/');
+    } catch (err) {
+      console.error("Google login error:", err);
+      setError('Google ile giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.');
     } finally {
       setLoading(false);
     }
@@ -179,6 +216,10 @@ const Login = () => {
           {loading ? <Loading message="Giriş yapılıyor..." /> : 'Giriş Yap'}
         </Button>
       </Form>
+      
+      <GoogleButton type="button" onClick={handleGoogleLogin} disabled={loading}>
+        <FaGoogle /> Google ile Giriş Yap
+      </GoogleButton>
       
       <RegisterLink>
         Hesabınız yok mu?{' '}
