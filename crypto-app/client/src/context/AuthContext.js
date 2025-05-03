@@ -112,7 +112,7 @@ export const AuthProvider = ({ children }) => {
   };
   
   // Kayıt işlemi
-  const register = async (username, email, password) => {
+  const register = async (username, email, password, additionalData = {}) => {
     try {
       setError(null);
       setIsLoading(true);
@@ -128,13 +128,21 @@ export const AuthProvider = ({ children }) => {
         createdAt: new Date(),
         favorites: [],
         portfolio: [],
-        alerts: []
+        alerts: [],
+        age: additionalData.age || null,
+        gender: additionalData.gender || null,
+        nationality: additionalData.nationality || null,
+        phoneNumber: additionalData.phoneNumber || null,
+        identificationNumber: additionalData.identificationNumber || null,
+        lastUpdated: new Date()
       });
       
       setCurrentUser({
         id: user.uid,
         email,
-        username
+        username,
+        createdAt: new Date(),
+        ...additionalData
       });
       setIsAuthenticated(true);
       
