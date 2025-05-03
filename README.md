@@ -68,6 +68,6 @@ Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICE
 
 ## İletişim
 
-Proje Sahibi - [@yourusername](https://github.com/yourusername)
+Proje Sahibi - [@sametyasit](https://github.com/sametyasit/CryptoBuddyWeb)
 
-Proje Linki: [https://github.com/yourusername/cryptobuddy](https://github.com/yourusername/cryptobuddy) 
+Proje Linki: [https://github.com/sametyasit/cryptobuddy](https://github.com/sametyasit/cryptobuddy) 
