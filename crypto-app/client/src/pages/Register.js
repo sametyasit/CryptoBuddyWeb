@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import styled from 'styled-components';
-import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaIdCard, FaGlobe, FaBirthdayCake, FaVenusMars, FaPhone } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 
 const Container = styled.div`
-  max-width: 400px;
+  max-width: 700px;
   margin: 2rem auto;
   padding: 2rem;
   background: var(--cardBackground);
@@ -23,6 +23,12 @@ const Title = styled.h1`
 const Form = styled.form`
   display: flex;
   flex-direction: column;
+  gap: 1.5rem;
+`;
+
+const FormGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
 `;
 
@@ -44,6 +50,22 @@ const InputWrapper = styled.div`
 `;
 
 const Input = styled.input`
+  width: 100%;
+  padding: 0.75rem;
+  padding-left: 2.5rem;
+  background: var(--inputBackground);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 1rem;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+`;
+
+const Select = styled.select`
   width: 100%;
   padding: 0.75rem;
   padding-left: 2.5rem;
@@ -83,6 +105,7 @@ const Button = styled.button`
   font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.2s;
+  margin-top: 1rem;
 
   &:hover {
     background: var(--primaryHover);
@@ -112,12 +135,26 @@ const LoginLink = styled(Link)`
   }
 `;
 
+const SectionTitle = styled.h3`
+  color: var(--text);
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+  grid-column: 1 / -1;
+`;
+
 const Register = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
   const [formData, setFormData] = useState({
     username: '',
     email: '',
+    age: '',
+    gender: '',
+    nationality: '',
+    phoneNumber: '',
+    identificationNumber: '',
     password: '',
     confirmPassword: ''
   });
@@ -144,9 +181,26 @@ const Register = () => {
 
     try {
       setLoading(true);
-      await register(formData);
-      navigate('/');
+      const result = await register(
+        formData.username, 
+        formData.email, 
+        formData.password,
+        {
+          age: formData.age,
+          gender: formData.gender,
+          nationality: formData.nationality,
+          phoneNumber: formData.phoneNumber,
+          identificationNumber: formData.identificationNumber
+        }
+      );
+      
+      if (result.success) {
+        navigate('/');
+      } else if (result.error) {
+        setError(result.error);
+      }
     } catch (err) {
+      console.error("Kayıt hatası:", err);
       setError(err.message || 'Kayıt olurken bir hata oluştu');
     } finally {
       setLoading(false);
@@ -157,81 +211,190 @@ const Register = () => {
     <Container>
       <Title>Kayıt Ol</Title>
       <Form onSubmit={handleSubmit}>
-        <FormGroup>
-          <Label>Kullanıcı Adı</Label>
-          <InputWrapper>
-            <Icon>
-              <FaUser />
-            </Icon>
-            <Input
-              type="text"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              required
-            />
-          </InputWrapper>
-        </FormGroup>
+        <SectionTitle>Temel Bilgiler</SectionTitle>
+        <FormGrid>
+          <FormGroup>
+            <Label htmlFor="username">Kullanıcı Adı*</Label>
+            <InputWrapper>
+              <Icon>
+                <FaUser />
+              </Icon>
+              <Input
+                type="text"
+                id="username"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                required
+              />
+            </InputWrapper>
+          </FormGroup>
 
-        <FormGroup>
-          <Label>E-posta</Label>
-          <InputWrapper>
-            <Icon>
-              <FaEnvelope />
-            </Icon>
-            <Input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-          </InputWrapper>
-        </FormGroup>
+          <FormGroup>
+            <Label htmlFor="email">E-posta*</Label>
+            <InputWrapper>
+              <Icon>
+                <FaEnvelope />
+              </Icon>
+              <Input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
+            </InputWrapper>
+          </FormGroup>
 
-        <FormGroup>
-          <Label>Şifre</Label>
-          <InputWrapper>
-            <Icon>
-              <FaLock />
-            </Icon>
-            <Input
-              type={showPassword ? 'text' : 'password'}
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
-            <TogglePassword
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? <FaEyeSlash /> : <FaEye />}
-            </TogglePassword>
-          </InputWrapper>
-        </FormGroup>
+          <FormGroup>
+            <Label htmlFor="phoneNumber">Telefon Numarası</Label>
+            <InputWrapper>
+              <Icon>
+                <FaPhone />
+              </Icon>
+              <Input
+                type="tel"
+                id="phoneNumber"
+                name="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={handleChange}
+                placeholder="+90 5XX XXX XX XX"
+              />
+            </InputWrapper>
+          </FormGroup>
+        </FormGrid>
 
-        <FormGroup>
-          <Label>Şifre Tekrar</Label>
-          <InputWrapper>
-            <Icon>
-              <FaLock />
-            </Icon>
-            <Input
-              type={showConfirmPassword ? 'text' : 'password'}
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-            />
-            <TogglePassword
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            >
-              {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-            </TogglePassword>
-          </InputWrapper>
-        </FormGroup>
+        <SectionTitle>Kişisel Bilgiler</SectionTitle>
+        <FormGrid>
+          <FormGroup>
+            <Label htmlFor="age">Yaş</Label>
+            <InputWrapper>
+              <Icon>
+                <FaBirthdayCake />
+              </Icon>
+              <Input
+                type="number"
+                id="age"
+                name="age"
+                min="18"
+                max="120"
+                value={formData.age}
+                onChange={handleChange}
+              />
+            </InputWrapper>
+          </FormGroup>
+
+          <FormGroup>
+            <Label htmlFor="gender">Cinsiyet</Label>
+            <InputWrapper>
+              <Icon>
+                <FaVenusMars />
+              </Icon>
+              <Select
+                id="gender"
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+              >
+                <option value="">Seçiniz</option>
+                <option value="M">Erkek</option>
+                <option value="F">Kadın</option>
+                <option value="O">Diğer</option>
+              </Select>
+            </InputWrapper>
+          </FormGroup>
+
+          <FormGroup>
+            <Label htmlFor="nationality">Uyruk</Label>
+            <InputWrapper>
+              <Icon>
+                <FaGlobe />
+              </Icon>
+              <Select
+                id="nationality"
+                name="nationality"
+                value={formData.nationality}
+                onChange={handleChange}
+              >
+                <option value="">Seçiniz</option>
+                <option value="TR">Türkiye</option>
+                <option value="US">Amerika Birleşik Devletleri</option>
+                <option value="GB">Birleşik Krallık</option>
+                <option value="DE">Almanya</option>
+                <option value="FR">Fransa</option>
+                <option value="other">Diğer</option>
+              </Select>
+            </InputWrapper>
+          </FormGroup>
+
+          <FormGroup>
+            <Label htmlFor="identificationNumber">T.C. Kimlik No / Pasaport No</Label>
+            <InputWrapper>
+              <Icon>
+                <FaIdCard />
+              </Icon>
+              <Input
+                type="text"
+                id="identificationNumber"
+                name="identificationNumber"
+                value={formData.identificationNumber}
+                onChange={handleChange}
+              />
+            </InputWrapper>
+          </FormGroup>
+        </FormGrid>
+
+        <SectionTitle>Güvenlik Bilgileri</SectionTitle>
+        <FormGrid>
+          <FormGroup>
+            <Label htmlFor="password">Şifre*</Label>
+            <InputWrapper>
+              <Icon>
+                <FaLock />
+              </Icon>
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                minLength={6}
+              />
+              <TogglePassword
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </TogglePassword>
+            </InputWrapper>
+          </FormGroup>
+
+          <FormGroup>
+            <Label htmlFor="confirmPassword">Şifre Tekrar*</Label>
+            <InputWrapper>
+              <Icon>
+                <FaLock />
+              </Icon>
+              <Input
+                type={showConfirmPassword ? 'text' : 'password'}
+                id="confirmPassword"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+                minLength={6}
+              />
+              <TogglePassword
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+              </TogglePassword>
+            </InputWrapper>
+          </FormGroup>
+        </FormGrid>
 
         {error && <Error>{error}</Error>}
 
